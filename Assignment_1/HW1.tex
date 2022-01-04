@@ -1,0 +1,196 @@
+\title{CS 615 - Deep Learning}
+\author{
+Assignment 1 - Forward Propagation\\
+Winter 2022
+}
+\date{}
+\documentclass[12pt]{article}
+\usepackage[margin=0.7in]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{comment}
+\usepackage{amsmath}
+\usepackage{multirow}  %% To have multirows in table
+\includecomment{versionB}
+%\excludecomment{versionB}
+
+\begin{document}
+\maketitle
+
+
+\section*{Introduction}
+In this first assignment we'll begin designing and implementing the modules we'll use in our deep learning architectures.  In addition, we'll start getting used to importing datasets.
+
+\section*{Allowable Libraries/Functions}
+Recall that you \textbf{cannot} use any ML functions to do the training or evaluation for you.  Using basic statistical and linear algebra function like \emph{mean}, \emph{std}, \emph{cov} etc.. is fine, but using ones like \emph{train} are not. Using any ML-related functions, may result in a \textbf{zero} for the programming component.  In general, use the ``spirit of the assignment'' (where we're implementing things from scratch) as your guide, but if you want clarification on if can use a particular function, DM the professor on discord.
+
+
+\section*{Grading}
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+Theory & 15pts\\
+Implementation of layers w/ forward propagation & 50pts\\
+Basic test on connected layer set & 20pts\\
+Test with medical cost dataset on connected layer set & 15pts\\
+\hline
+\textbf{TOTAL} & 100pts \\
+\hline
+\end{tabular}
+\caption{Grading Rubric}
+\end{center}
+\end{table}
+
+\newpage
+\section*{Datasets}
+\paragraph{Medical Cost Personal Dataset  (mcpd\_augmented.csv)}
+This dataset consists of data for 1338 people in a CSV file.  The original dataset, found at https://www.kaggle.com/mirichoi0218/insurance, contains the following information for each person:
+
+\begin{enumerate}
+\item age
+\item sex
+\item bmi
+\item children
+\item smoker
+\item region
+\item charges
+\end{enumerate}
+
+\noindent
+For the purposes of this assignment, we have converted the \emph{sex} and \emph{smoker} features into binary features and the \emph{region} into an enumerated feature $\in \{0,1,2,3\}$.   In addition, we omitted the \emph{charges} information (in a subsequent assignment we will look to predict this).
+
+
+\newpage
+\section{Theory}
+\begin{enumerate}
+\item Given a single input observation $x=\begin{bmatrix}1\\2\\3\end{bmatrix}$ and a fully connected layer with weights of $W=\begin{bmatrix}
+1 & 2\\
+3 & 4\\
+5 & 6\\
+\end{bmatrix}$  as biases $b=\begin{bmatrix}-1 & 2\end{bmatrix}$, what are the output of the fully connected layer given $x$ as its input (5pts)?
+
+\item Given an input, $h=[10,-1]$, what would be the output(s) if this data was processed by the following activation functions/layers (10pts)? 
+\begin{enumerate}
+\item Linear
+\item ReLu
+\item Sigmoid
+\item Hyperbolic Tangent
+\item Softmax
+\end{enumerate}
+
+\end{enumerate}
+
+\newpage
+\section{ABC and Input Layer}
+Referring to the lecture slides, first implement an \emph{abstract base class} called \emph{Layer} that has the following:
+\begin{itemize}
+\item A constructor that initializes the attributes, one for the previous input and one for the previous output, to empty lists.
+\item Getter and setter methods for the attributes.
+\item An abstract method for forward propagation, \emph{forward}.
+\item An abstract method for getting the layer's gradient, \emph{gradient}.
+\end{itemize}
+
+\noindent
+Next, implement a class called \emph{InputLayer} that inherits from your abstract base class.  This class' constructor should take as a parameter your dataset, and initialize two attributes, \emph{meanX} and \emph{stdX} to be row vectors of the mean and standard deviation, respectively, of the features of your dataset. For numeric stability, set any feature that has a standard deviation of zero to 1.  In addition, you must implement the abstract method \emph{forward} such that it takes a data matrix, $X$, as a parameter, sets the parent class' previous input attribute to it, and computes the \emph{zscored} version of this data using the \emph{meanX} and \emph{stdX} attributes, setting the parent class' previous output to this and returning this .  You'll also need to implement the abstract method \emph{gradient} as well, but it can just return nothing (for now!).
+
+\section{Activation Layers}
+Nex,t implement classes for the following activation functions:
+\begin{itemize}
+\item \emph{ReLuLayer}
+\item \emph{SigmoidLayer}
+\item \emph{SoftmaxLayer}
+\item \emph{TanhLayer} (Hyperbolic Tangent Function)
+\end{itemize}
+
+\noindent
+Each class should inherit from the \emph{Layer} abstract base class, and must implement the \emph{forward} method that takes in data as a parameter, sets its parent class' previous input to that data, computes the output values, setting the parent class' previous output to that, and returns that output.
+
+\section{FullyConnectedLayer}
+Finally, let's create a class for a fully connected layer, aptly called \emph{FullyConnected}.  This too should inherit from \emph{Layer}.  Following the material in the lecture slides, this class should have two attributes, a weight matrix and a bias vector.  The constructor should take in two parameters, the number of features coming in, and the number of features coming out of this layer, and use these to initialize the weights to be random values in the range of $\pm 10^{-4}$.   Its \emph{forward} method once again takes in data $X$, storing it in its parent's previous input attribute, and computes the output (storing it with the parent class, and returning it) as:
+$$Y = XW+b$$
+where $W$ is the weight matrix and $b$ is the bias vector.  For now, the \emph{gradient} method may return nothing.  In addition provide getter and setter methods for the weight and bias attributes.
+\newpage
+\section{Testing the layers}
+Let's test each layer using the following input data (this can be considered two observations, with four features per observation):
+$$X = \begin{bmatrix}
+1 & 2 & 3 & 4\\
+5 & 6 & 7 & 8\\
+\end{bmatrix}$$
+
+\noindent
+For reproducability, seed your random number generator to zero prior to running your tests.\\
+
+\noindent
+In your report provide:
+\begin{itemize}
+\item Output of input layer
+\item Output of fully connected layer (output is of size two)
+\item Output of ReLu activation layer
+\item Output of sigmoid activation layer
+\item Output of softmax activation layer
+\item Output of tanh activation layer
+
+\end{itemize}
+
+\newpage
+\section{Connecting Layers and Forward Propagate}
+Now let's assemble a simple network and forward propagate data through it!\\
+
+
+\noindent
+Our architecture will be:\\
+\begin{center}
+Input$\rightarrow$FC (2 outputs)$\rightarrow$Sigmoid
+\end{center}
+
+\noindent
+We'll once again use the data $X$ from our prior problem as the input to this pipeline.  From an implementation standpoint, you'll likely want to create instances of your classes and organize them in some sort of an ordered structure such that the output of one layer is the input of the next.\\
+
+\noindent  
+ In your report provide the output from each layer.
+
+\newpage
+\section{Testing on full dataset}
+To test your implementation on a real dataset, we'll use the augmented medical cost dataset mentioned earlier in the assignment.  Read in the dataset as your input data $X$ and pass it through the architecture from the previous problem.\\
+
+\noindent
+In your report, just provide the output of the last layer pertaining to the \textbf{first observation}.
+
+\newpage
+\section*{Submission}
+For your submission, upload to Blackboard a single zip file containing:
+
+\begin{enumerate}
+\item PDF Writeup
+\item Source Code
+\item readme.txt file
+\end{enumerate}
+
+\noindent
+The readme.txt file should contain information on how to run your code to reproduce results for each part of the assignment.\\
+
+\noindent
+The PDF document should contain the following:
+
+\begin{enumerate}
+\item Part 1:
+	\begin{enumerate}
+	\item Your solutions to the theory question
+	\end{enumerate}
+\item Parts 2-4:  Nothing
+\item Part 5:
+	\begin{enumerate}
+	\item The output for each layer when using the provided $X$ as its input.
+	\end{enumerate}
+\item Part 6:
+	\begin{enumerate}
+	\item The output of the final layer, when given input $X$ as the input to the first layer.
+	\end{enumerate}
+\item Part 7:
+	\begin{enumerate}
+	\item The output pertaining to the first observation from the final layer, when given the augemented medical cost dataset as its input.
+	\end{enumerate}
+\end{enumerate}
+\end{document}
+
