@@ -4,11 +4,10 @@
 ## Important packages
 from abc import ABC, abstractmethod
 import numpy as np
-import pandas as pd
 
 ### Edit the forward section
 class Layer(ABC):
-    def __init__(ABC):
+    def __init__(self):
         self.__prevIn = []
         self.__prevOut = []
 
@@ -37,13 +36,17 @@ class Layer(ABC):
 
 ### Edit everything except the Gradient
 class InputLayer(Layer):
-    def __init__(self,dataIn):
-        ##empty
-        pass
+    def __init__(self, dataIn):
+        self.dataIn = dataIn
+        self.mean_data = np.mean(dataIn,axis=0)
+        self.std_data = np.std(dataIn,axis=0)
+        self.std_data[self.std_data==0]=1
 
     def forward(self,dataIn):
-        ##empty
-        pass
+        self.setPrevIn(dataIn)
+        z_scored_data = (dataIn - self.mean_data) / self.std_data
+        self.setPrevOut(z_scored_data)
+        return z_scored_data
 
     def gradient(self):
         pass
@@ -51,62 +54,68 @@ class InputLayer(Layer):
 # Activation Layers
 ### Edit all the Layer classes
 
-class Linear(Layer):
+class LinearLayer(Layer):
     def __init__(self):
-        ##empty
-        pass
+        super().__init__()
     
     def forward(self,dataIn):
-        ##empty
-        pass
+        self.setPrevIn(dataIn)
+        linear_data = np.copy(dataIn)
+        self.setPrevOut(linear_data)
+        return linear_data
 
     def gradient(self):
         pass
 
-class ReLu(Layer):
+class ReLuLayer(Layer):
     def __init__(self):
-        ##empty
-        pass
+        super().__init__()
     
     def forward(self,dataIn):
-        ##empty
-        pass
+        self.setPrevIn(dataIn)
+        relu_data = np.maximum(0,dataIn)
+        self.setPrevOut(relu_data)
+        return relu_data
 
     def gradient(self):
         pass
 
-class Sigmoid(Layer):
+class SigmoidLayer(Layer):
     def __init__(self):
-        ##empty
-        pass
+        super().__init__()
     
     def forward(self,dataIn):
-        ##empty
-        pass
+        self.setPrevIn(dataIn)
+        sig_data = 1/(1+np.exp(-dataIn))
+        self.setPrevOut(sig_data)
+        return sig_data
 
     def gradient(self):
         pass
 
-class Softmax(Layer):
+class SoftmaxLayer(Layer):
     def __init__(self):
-        ##empty
-        pass
+        super().__init__()
     
     def forward(self,dataIn):
-        ##empty
-        pass
+        self.setPrevIn(dataIn)
+        top, bottom = np.exp(dataIn-(np.amax(dataIn, axis=0))), np.sum(np.exp(dataIn-(np.amax(dataIn, axis=0))))
+        soft_data = top/bottom
+        self.setPrevOut(soft_data)
+        return soft_data
 
     def gradient(self):
         pass
 
-class Tan(Layer):
+class TanhLayer(Layer):
     def __init__(self):
-        ##empty
-        pass
+        super().__init__()
     
     def forward(self,dataIn):
-        ##empty
-        pass
+        self.setPrevIn(dataIn)
+        tanh_data = (np.exp(dataIn) - np.exp(-dataIn)) / (np.exp(dataIn)+np.exp(-dataIn))
+        self.setPrevOut(tanh_data)
+        return tanh_data
 
     def gradient(self):
         pass
@@ -115,30 +124,41 @@ class Tan(Layer):
 # Fully Connected Layer
 ### Edit all defs except the gradient
 
-class FullyConnectedLAyer(Layer):
+class FullyConnectedLayer(Layer):
     def __init__(self, sizeIn, sizeOut):
-        ##empty
-        pass
+        self.sizeIn = sizeIn
+        self.sizeOut = sizeOut
+        self.weights = np.random.uniform(-0.0001, 0.0001,size=(sizeIn,sizeOut))
+        self.bias = np.random.uniform(-0.0001, 0.0001,size=(1,sizeOut))
 
     def getWeights(self):
-        ##empty
-        pass
+        return self.weights
 
     def setWeights(self,weights):
-        ##empty
-        pass
+        self.weights = weights
 
     def getBias(self):
-        ##empty
-        pass
+        return self.bias
 
     def setBias(self,bias):
-        ##empty
-        pass
+        self.bias = bias
 
     def forward(self,dataIn):
-        ##empty
-        pass
-    
+        self.setPrevIn(dataIn)
+        newset = np.matmul(dataIn,self.weights)+self.bias
+        self.setPrevOut(newset)
+        return newset
+
     def gradient(self):
         pass
+
+
+if __name__ == '__main__':
+    #C = InputLayer(np.genfromtxt('mcpd_augmented.csv', delimiter=','))
+    #linear = Linear()
+    #relu = ReLu()
+    #sig = Sigmoid()
+    #sm = Softmax()
+    #tanh = TanhLayer()
+    fl = FullyConnectedLayer(6,2)
+    print(fl.forward(np.genfromtxt('mcpd_augmented.csv', delimiter=',')))
