@@ -1,0 +1,191 @@
+\title{CS 615 - Deep Learning}
+\author{
+Assignment 2 - Objective Functions and Gradients\\
+Winter 2022
+}
+\date{}
+\documentclass[12pt]{article}
+\usepackage[margin=0.7in]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{comment}
+\usepackage{amsmath}
+\usepackage{multirow}  %% To have multirows in table
+\includecomment{versionB}
+\usepackage{listings}
+%\excludecomment{versionB}
+
+%\usepackage{xcolor}
+%\newcommand\red[1]{\textcolor{red}{#1}} % add \red{} command 
+
+\begin{document}
+\maketitle
+
+
+\section*{Introduction}
+In this assignment we'll implement our output/objective modules and add computing the gradients to each of our modules.
+
+\section*{Allowable Libraries/Functions}
+Recall that you \textbf{cannot} use any ML functions to do the training or evaluation for you.  Using basic statistical and linear algebra function like \emph{mean}, \emph{std}, \emph{cov} etc.. is fine, but using ones like \emph{train} are not. Using any ML-related functions, may result in a \textbf{zero} for the programming component.  In general, use the ``spirit of the assignment'' (where we're implementing things from scratch) as your guide, but if you want clarification on if can use a particular function, DM the professor on slack.
+
+
+\section*{Grading}
+\textbf{Do not modify the public interfaces of any code skeleton given to you. Class and variable names should be exactly the same as the skeleton code provided, and no default parameters should be added or removed.}
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+Theory & 18pts\\
+Implementation of non-input, non-objective gradient methods & 20pts\\
+Implementation of objective layers & 40pts\\
+Tests on non-input, non-objective gradient methods & 10pts\\
+Tests on objective layers' loss computations & 4pts\\
+Tests on objective layers' gradient computations & 8pts\\
+\hline
+\textbf{TOTAL} & 100pts \\
+\hline
+\end{tabular}
+\caption{Grading Rubric}
+\end{center}
+\end{table}
+
+
+
+\newpage
+\section{Theory}
+\begin{enumerate}
+\item (8 points) Given $h=\begin{bmatrix}1 & 2 & 3 & 4\end{bmatrix}$ as an input, compute the gradients of the output with respect to this input for:
+	\begin{enumerate}
+	\item A ReLu layer
+	\item A Softmax layer
+	\item A Sigmoid Layer
+	\item A Tanh Layer
+	\end{enumerate}
+
+\item (2 points) Given $h=\begin{bmatrix}1 & 2 & 3 & 4\end{bmatrix}$ as an input, compute the gradient of the output a fully connected layer with regards to this input if the fully connected layer has weights of $W=\begin{bmatrix}
+1 & 2\\
+3 & 4\\
+5 & 6\\
+7 & 8\\
+\end{bmatrix}$  as biases $b=\begin{bmatrix}-1 & 2\end{bmatrix}$.
+
+\item (2 points) Given a target value of $y=0$ and an estimated value of $\hat{y}=0.2$ compute the loss for:
+\begin{enumerate}
+\item A squared error objective function
+\item A log loss (negative log likelihood) objective function)
+\end{enumerate}
+
+\item (1 point) Given a target \emph{distribution} of $y=[1, 0, 0]$ and an estimated distribution of $\hat{y}=[0.2, 0.2, 0.6]$ compute the cross entropy loss.
+
+\item (4 points) Given a target value of $y=0$ and an estimated value of $\hat{y}=0.2$ compute the gradient of the following objective functions with regards to their input, $\hat{y}$:
+\begin{enumerate}
+\item A squared error objective function
+\item A log loss (negative log likelihood) objective function)
+\end{enumerate}
+
+\item (1 point) Given a target \emph{distribution} of $y=[1, 0, 0]$ and an estimated distribution of $\hat{y}=[0.2, 0.2, 0.6]$ compute the gradient of the cross entropy loss function, with regard to the input distribution $\hat{y}$.
+
+\end{enumerate}
+
+\newpage
+\section{Adding Gradient Methods}
+To each of your non-input modules from HW1 (\emph{FullyConnectedLayer}, \emph{ReLuLayer}, \emph{SoftmaxLayer}, \emph{TanhLayer} and \emph{SigmoidLayer}) implement the \emph{gradient} method such that it computes and returns the gradient (as a single float value)  of the most recent output of the layer with respect to its most recent input (both of which should have been stored in the parent class, and updated in the \emph{forward} method).
+
+\section{Objective Layers}
+Next, let's implement a module for each of our objective functions.  These modules should implement (at least) two methods:
+\begin{itemize}
+\item \emph{eval} - This method takes two explicit parameters, the target value and the incoming/estimated value,  and computes and returns the loss (as a single float value) according to the module's objective function.
+\item \emph{gradient} - This method takes the same two explicit parameters as the \emph{eval} method and computes and returns the gradient of the objective function using those parameters.
+\end{itemize}
+
+\noindent
+Implement these for the following objective functions:
+\begin{itemize}
+\item Least Squares as \emph{LeastSquares}
+\item Log Loss (negative log likelihood)  as \emph{LogLoss}
+\item Cross Entropy as \emph{CrossEntropy}
+\end{itemize}
+
+\noindent
+Your public interface is:
+
+\begin{lstlisting}[language=Python]
+class XXX():
+  def eval(self,y, yhat):
+    #TODO
+
+  def gradient(self,y, yhat):
+    #TODO
+\end{lstlisting}
+
+\newpage
+\section{Testing the gradient methods}
+For each non-input, non-objective layer (\emph{FullyConnectedLayer} (w/ two outputs), \emph{ReLuLayer}, \emph{SoftmaxLayer}, \emph{TanhLayer}, and \emph{SigmoidLayer}):
+\begin{enumerate}
+\item Instantiate the layer (for reproducibility, seed your random number generator to zero prior to running your tests).
+\item Forward propagate through the layer using the input provided below.
+\item Run your gradient method to get the gradient of the output of the layer with respect to its input.
+\end{enumerate}
+
+\noindent
+Here's the input (single observation) to each of these layers:
+$$h = \begin{bmatrix}
+1 & 2 & 3 & 4
+\end{bmatrix}$$
+
+\noindent
+In your report provide the gradient returned by each layer.
+
+\newpage
+\section{Testing the Objective Layers}
+Finally we'll test the objective layers.  For each objective module you'll:
+
+\begin{itemize}
+\item Instantiate the layer/module
+\item Evaluate the objective function using the provide estimate and target value(s).
+\item Compute (and return) the gradient of the objective function given the estimated and target value(s).
+\end{itemize}
+
+\noindent
+For this you'll use the following target ($y$) and estimated ($\hat{y}$) values for the \emph{least squares} and \emph{log loss} objective functions:
+
+$$ y = 0$$
+$$\hat{y}=0.2$$
+\noindent
+and the following for the cross-entropy objective function:
+$$y = \begin{bmatrix}
+1 & 0 & 0\\
+\end{bmatrix}$$
+$$
+\hat{y} = \begin{bmatrix}
+0.2 & 0.2 & 0.6\\
+\end{bmatrix}
+$$
+
+\noindent
+In your report provide the evaluation of the objective function and the gradient returned by each of these output layers.
+
+\newpage
+\section*{Submission}
+For your submission, upload to Blackboard a single zip file containing:
+
+\begin{enumerate}
+\item PDF Writeup
+\item Source Code
+\item readme.txt file
+\end{enumerate}
+
+\noindent
+The readme.txt file should contain information on how to run your code to reproduce results for each part of the assignment.\\
+
+\noindent
+The PDF document should contain the following:
+
+\begin{enumerate}
+\item Part 1:  Your solutions to the theory question
+\item Parts 2-3:  Nothing
+\item Part 4: The gradient of the output of each layer with respect to its input, where the provided $X$ is the input.
+\item Part 5: The loss of each objective layer using the provided $y$ and $\hat{y}$ as well as the gradient of the objective functions, with regards to their input ($\hat{y}$). 
+\end{enumerate}
+\end{document}
+
