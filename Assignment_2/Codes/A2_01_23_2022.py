@@ -73,12 +73,20 @@ class ReLuLayer(Layer):
     
     def forward(self,dataIn):
         self.setPrevIn(dataIn)
-        relu_data = np.maximum(0,dataIn)
+        relu_data = np.copy(dataIn)
+        relu_data[relu_data<0]=0
         self.setPrevOut(relu_data)
         return relu_data
 
     def gradient(self):
-        pass
+        dataIn = np.copy(self.getPrevIn())
+        inSize = np.size(dataIn)
+        dataIn[dataIn>=0]=1
+        dataIn[dataIn<0]=0
+        #create final array
+        grad_relu_data = np.zeros((inSize,inSize))
+        np.fill_diagonal(grad_relu_data,dataIn)
+        return grad_relu_data
 
 class SigmoidLayer(Layer):
     def __init__(self):
@@ -91,7 +99,13 @@ class SigmoidLayer(Layer):
         return sig_data
 
     def gradient(self):
-        pass
+        dataIn = self.getPrevOut()
+        inSize = np.size(dataIn)
+        h_diag = dataIn*(1-dataIn)
+        grad_sig_data = np.zeros((inSize,inSize))
+        np.fill_diagonal(grad_sig_data,h_diag)
+        return grad_sig_data
+
 
 class SoftmaxLayer(Layer):
     def __init__(self):
@@ -99,13 +113,25 @@ class SoftmaxLayer(Layer):
     
     def forward(self,dataIn):
         self.setPrevIn(dataIn)
-        top, bottom = np.exp(dataIn-(np.amax(dataIn, axis=0))), np.sum(np.exp(dataIn-(np.amax(dataIn, axis=0))))
-        soft_data = top/bottom
+        # top, bottom = np.exp(dataIn-(np.amax(dataIn, axis=0))), np.sum(np.exp(dataIn-(np.amax(dataIn, axis=0))))
+        # soft_data = top/bottom
+        soft_data = np.exp(dataIn)/np.sum(np.exp(dataIn))
         self.setPrevOut(soft_data)
         return soft_data
 
     def gradient(self):
-        pass
+        dataIn = self.getPrevOut()
+        inSize = np.size(dataIn)
+        grad_soft_data = np.zeros((inSize,inSize))
+        ar_index = 0
+        while ar_index < len(dataIn[0]):
+            for mat_index in range(0,len(grad_soft_data)):
+                if mat_index == ar_index:
+                    grad_soft_data[mat_index,ar_index] = dataIn[:,ar_index]*(1-dataIn[:,ar_index])
+                else:
+                    grad_soft_data[mat_index,ar_index] = -dataIn[:,ar_index] * dataIn[:,mat_index]
+            ar_index+=1
+        return grad_soft_data
 
 class TanhLayer(Layer):
     def __init__(self):
@@ -118,7 +144,12 @@ class TanhLayer(Layer):
         return tanh_data
 
     def gradient(self):
-        pass
+        dataIn = self.getPrevOut()
+        inSize = np.size(dataIn)
+        h_diag = 1-dataIn**2
+        grad_tanh_data = np.zeros((inSize,inSize))
+        np.fill_diagonal(grad_tanh_data,h_diag)
+        return grad_tanh_data
 
 
 # Fully Connected Layer
@@ -151,59 +182,89 @@ class FullyConnectedLayer(Layer):
         return newset
 
     def gradient(self):
-        pass
+        weights = self.getWeights()
+        grad_fc_data = np.transpose(weights)
+        return grad_fc_data
+
+class LeastSquares:
+    def eval(self,y,yhat):
+        j = (y - yhat)**2
+        return j
+
+    def gradient(self,y,yhat):
+        grad_j = -2*(y-yhat)
+        return grad_j
+
+class LogLoss:
+    def eval(self,y,yhat):
+        j = (yhat**y)*(1-yhat)**(1-y)
+        return j
+
+    def gradient(self,y,yhat):
+        grad_j = -(y-yhat)/(yhat*(1-yhat))
+        return grad_j
+
+class CrossEntropy:
+    def eval(self,y,yhat):
+        j = np.dot(-y,np.log(np.transpose(yhat)))
+        return j
+
+    def gradient(self,y,yhat):
+        grad_j = -y/yhat
+        return grad_j
 
 
 if __name__ == '__main__':
-    test_set = np.array([[1,2,3,4],[5,6,7,8]])
+    test_set = np.array([[1,2,3,4]])
     print()
-    print("*************************************************************************")
-    print("****************** Part 5: Testing the layers ***************************")
-    print("*************************************************************************")
-    il = InputLayer(test_set)
-    fl = FullyConnectedLayer(4,2)
-    relu = ReLuLayer()
-    sig = SigmoidLayer()
+    print("Part 4",end = "\n")
+
+    fc = FullyConnectedLayer(4,2)
+    fc_data = fc.forward(test_set)
+    print("FullyConnectedLayer Gradient")
+    print(fc.gradient(), end = "\n\n")
+
+    ru = ReLuLayer()
+    ru_data = ru.forward(test_set)
+    print("ReLuLayer Gradient")
+    print(ru.gradient(), end = "\n\n")
+
     sm = SoftmaxLayer()
+    sm_data = sm.forward(test_set)
+    print("SoftmaxLayer Gradient")
+    print(sm.gradient(), end = "\n\n")
+
     tanh = TanhLayer()
-    print("Input Layer:")
-    print(il.forward(test_set),end="\n\n")
-    print("Fully Connected Layer:")
-    print(fl.forward(test_set),end="\n\n")
-    print("ReLu Activation Layer:")
-    print(relu.forward(test_set),end="\n\n")
-    print("Sigmoid Activation Layer:")
-    print(sig.forward(test_set),end="\n\n")
-    print("SoftMax Activation Layer:")
-    print(sm.forward(test_set),end="\n\n")
-    print("Tanh Activation Layer:")
-    print(tanh.forward(test_set),end="\n\n")
+    tanh_data = tanh.forward(test_set)
+    print("TanhLayer Gradient")
+    print(tanh.gradient(), end = "\n\n")
 
-    print("*************************************************************************")
-    print("*********** Part 6: Connecting Layers and Foward Propagate **************")
-    print("*************************************************************************")
-    test_set = np.array([[1,2,3,4],[5,6,7,8]])
-    il = InputLayer(test_set)
-    il_data = il.forward(test_set)
-    fl = FullyConnectedLayer(4,2)
-    fl_data = fl.forward(il_data)
     sig = SigmoidLayer()
-    sig_data = sig.forward(fl_data)
-    print("Input Layer:")
-    print(il_data,end="\n\n")
-    print("Fully Connected Layer:")
-    print(fl_data,end="\n\n")
-    print("Sigmoid Activation Layer:")
-    print(sig_data,end="\n\n")
+    sig_data = sig.forward(test_set)
+    print("SigmoidLayer Gradient")
+    print(sig.gradient(), end = "\n\n")
 
-    print("*************************************************************************")
-    print("***************** Part 7: Testing on full dataset ***********************")
-    print("*************************************************************************")
-    il = InputLayer(np.genfromtxt('mcpd_augmented.csv', delimiter=','))
-    il_data = il.forward(np.genfromtxt('mcpd_augmented.csv', delimiter=','))
-    fl = FullyConnectedLayer(6,2)
-    fl_data = fl.forward(il_data)
-    sig = SigmoidLayer()
-    sig_data = sig.forward(fl_data)
-    print("Sigmoid Activation Layer:")
-    print(sig_data,end="\n\n")
+    print("Part 5",end="\n")
+    y = 0
+    yhat = 0.2
+
+    print("LeastSquares")
+    ls = LeastSquares()
+    print("eval:",ls.eval(y,yhat))
+    print("gradient:",ls.gradient(y,yhat),end="\n\n")
+
+    print("LogLoss")
+    ls = LogLoss()
+    print("eval:",ls.eval(y,yhat))
+    print("gradient:",ls.gradient(y,yhat),end="\n\n")
+
+    print("CrossEntropy")
+    y = np.array([[1,0,0]])
+    yhat = np.array([[0.2,0.2,0.6]])
+    ls = CrossEntropy()
+    print("eval:")
+    print(ls.eval(y,yhat))
+    print("gradient:")
+    print(ls.gradient(y,yhat), end = "\n\n")
+
+
