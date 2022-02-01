@@ -1,0 +1,210 @@
+\title{CS 615 - Deep Learning}
+\author{
+        Assignment 3 - Backprop and Basic Architectures\\
+Winter 2022
+}
+\date{}
+\documentclass[12pt]{article}
+\usepackage[margin=0.7in]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{comment}
+\usepackage{amsmath}
+\usepackage{listings}
+
+\includecomment{versionB}
+%\excludecomment{versionB}
+
+%\usepackage{xcolor}
+%\newcommand\red[1]{\textcolor{red}{#1}} % add \red{} command 
+
+\begin{document}
+\maketitle
+
+
+\section*{Introduction}
+In this assignment we will implement backpropagation and train/validate a few simple architectures using real datasets.\\
+
+\section*{Allowable Libraries/Functions}
+Recall that you \textbf{cannot} use any ML functions to do the training or evaluation for you.  Using basic statistical and linear algebra function like \emph{mean}, \emph{std}, \emph{cov} etc.. is fine, but using ones like \emph{train} are not. Using any ML-related functions, may result in a \textbf{zero} for the programming component.  In general, use the ``spirit of the assignment'' (where we're implementing things from scratch) as your guide, but if you want clarification on if can use a particular function, DM the professor on slack.
+
+
+
+\section*{Grading}
+\textbf{Do not modify the public interfaces of any code skeleton given to you. Class and variable names should be exactly the same as the skeleton code provided, and no default parameters should be added or removed.}
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+Part 1 (Theory) & 20pts\\
+Part 2 (Visualizing Gradient Descent) & 10pts\\
+Part 4 (Linear Regression) & 35pts\\
+Part 5 (Logistic Regression) & 35pts\\
+\hline
+\textbf{TOTAL} & 100pts \\
+\hline
+\end{tabular}
+\caption{Grading Rubric}
+\end{center}
+\end{table}
+
+\newpage
+\section*{Datasets}
+\paragraph{Medical Cost Personal Dataset}
+For our regression task we'll once again use the medical cost dataset that consists of data for 1338 people in a CSV file.  This data for each person includes:
+\begin{enumerate}
+\item age
+\item sex
+\item bmi
+\item children
+\item smoker
+\item region
+\item charges
+\end{enumerate}
+
+\noindent
+This time I preprocessed the data for you to again convert the \emph{sex} and \emph{smoker} features into binary features and the \emph{region} into a \emph{set} of binary features.  In addition, we now \emph{included} the \emph{charges} information as we will want to predict this.\\
+
+\noindent
+For more information, see https://www.kaggle.com/mirichoi0218/insurance
+
+\paragraph{Kid Creative}
+We will use this dataset for binary classification.  This dataset consists of data for $673$ people in a CSV file.  This data for each person includes:
+\begin{enumerate}
+\item Observation Number (we'll want to omit this)
+\item Buy (binary target value)
+\item Income
+\item Is Female
+\item Is Married
+\item Has College
+\item Is Professional
+\item Is Retired
+\item Unemployed
+\item Residence Length
+\item Dual Income
+\item Minors
+\item Own
+\item House
+\item White
+\item English
+\item Prev Child Mag
+\item Prev Parent Mag
+\end{enumerate}
+
+\noindent
+We'll omit the first column and use the second column for our binary target $Y$.  The remaining 16 columns provide our feature data for our observation matrix $X$.
+
+\newpage
+\section{Theory}
+\begin{enumerate}
+\item For the function $J=(x_1 w_1 -5x_2 w_2-2)^2$, where $w=[w_1, w_2]^T$ are our weights to learn:
+\begin{enumerate}
+\item What are the partial gradients, $\frac{\partial J}{\partial w_1}$ and $\frac{\partial J}{\partial w_2}$?  Show work to support your answer (6pts).
+\item What are the value of the partial gradients, given current values of $w=[0, 0]^T, x=[1, 1]^T$ (4pts)?
+\end{enumerate}
+
+\item Given the objective function $J=\frac{1}{4}(x_1 w_1)^4-\frac{4}{3}(x_1 w_1)^3+\frac{3}{2}(x_1 w_1)^2$:
+\begin{enumerate}
+\item What is the gradient $\frac{\partial J}{\partial w_1}$ (2pts)?
+\item What are the locations of the extrema points for this objective function $J$ if $x_1=1$?  Recall that to find these you set your equation to zero and solve for, in this case, $w_1$. (5pts)
+\item What does $J$ evaluate to at each of your extrema points, again when $x_1=1$ (3pts)?
+\end{enumerate}
+\end{enumerate}
+
+\newpage
+\section{Visualizing Gradient Descent}
+In this section we want to visualize the gradient descent process for the following function (which was part of one of the theory questions):
+$$J=(x_1 w_1 -5x_2 w_2-2)^2$$
+
+\noindent
+Hyperparameter choices will be as follows:
+\begin{itemize}
+\item Initialize your parameters to zero.
+\item Set the learning rate to $\eta=0.01$.
+\item Terminate after 100 epochs.
+\end{itemize}
+
+\noindent
+Using the partial gradients you computed in the theory question, perform gradient descent, using $x=[1, 1]^T$.  After each training epoch, evaluate $J$ so that you can plot $w_1$ vs $w_2$, vs $J$ as a 3D line plot.  Put this figure in your report.
+
+\section{Backpropagate and Update the Weights}
+To perform backwards propagation, your non-objective and non-input modules must have a \emph{backward} method that takes as its implicit parameters an incoming (backcoming?) gradient and returns the gradient to be backpropagated.  Since many of the modules have the same backpropagation rules, it might be logical to have a default one in your abstract class, then override it in your derived classes, as needed.\\
+
+\begin{lstlisting}[language=Python]
+  def backward(self,gradIn):
+    #TODO
+\end{lstlisting}
+
+\noindent
+In addition, for the \emph{FullyConnected} module, implement an \emph{updateWeights} method that takes as parameters the backcoming gradient and a learning rate \emph{eta} and updates the weights and biases of the layer.
+
+\begin{lstlisting}[language=Python]
+  def updateWeights(self,gradIn, eta = 0.0001):
+    #TODO
+\end{lstlisting}
+
+\newpage
+\section{Linear Regression}
+In this section you'll use your modules to assemble a linear regression model and train and validate it using the \emph{medical cost dataset}.  The architecture of your linear regression should be as follows:
+$$Input \rightarrow  \textrm{Fully-Connected} \rightarrow \textrm{Least-Squared-Objective}$$
+
+\noindent
+Your code should do the following:
+\begin{enumerate}
+\item Read in the dataset to assemble $X$ and $Y$
+\item \emph{Shuffle} the dataset, extracting $\frac{2}{3}$ for training and $\frac{1}{3}$ for validation.
+\item Train, via gradient learning, your linear regression system using the training data.  Refer to the pseudocode in the lecture slides on how this training loop should look.  Initialize your weights to be random values in the range of $\pm 10^{-4}$ and your learning rate to be $\eta=10^{-4}$.  Terminate the learning process when the absolute change in the mean absolution percent error (MAPE) on the training data is less than $10^{-10}$ or you pass $10,000$ epochs.  During training, keep track of the RMSE and MAPE for both the training and validation sets so that we can plot these as a function of the epoch.
+\end{enumerate}
+
+\noindent
+In your report provide:
+\begin{enumerate}
+\item Your plots of training and validation RMSE vs epoch.
+\item Your plots of training and validation MAPE vs epoch.
+\end{enumerate}
+
+\newpage
+\section{Logistic Regression}\label{linreg}
+Next we'll use a logistic regression model on the \emph{kid creative} dataset to predict if a user will purchase a product.   The architecture of this model should be:
+$$Input \rightarrow \textrm{Fully-Connected} \rightarrow \textrm{Sigmoid-Activation} \rightarrow \textrm{Log-Loss-Objective}$$
+
+\noindent
+Your code should do the following:
+\begin{enumerate}
+\item Read in the dataset to assemble $X$ and $Y$
+\item \emph{Shuffle} the dataset, extracting $\frac{2}{3}$ for training and $\frac{1}{3}$ for validation.
+\item Train, via gradient learning, your logistic regression system using the training data.  Initialize your weights to be random values in the range of $\pm 10^{-4}$ and your learning rate to be $\eta=10^{-4}$.  Terminate the learning process when the absolute change in the log loss  is less than $10^{-10}$ or you pass $10,000$ epochs.  During training, keep track of the log loss for both the training and validation sets so that we can plot these as a function of the epoch.
+\end{enumerate}
+
+\noindent
+In your report provide:
+\begin{enumerate}
+\item Your plots of training and validation log loss vs epoch.
+\item Assigning an observation to class 1 if the model outputs a value greater than 0.5, report the training and validation accuracy.
+\end{enumerate}
+
+\newpage
+\section*{Submission}
+For your submission, upload to Blackboard a single zip file containing:
+
+\begin{enumerate}
+\item PDF Writeup
+\item Source Code
+\item readme.txt file
+\end{enumerate}
+
+\noindent
+The readme.txt file should contain information on how to run your code to reproduce results for each part of the assignment.\\
+
+\noindent
+The PDF document should contain the following:
+
+\begin{enumerate}
+\item Part 1: Your solutions to the theory question
+\item Part 2: Nothing
+\item Part 3: Your plot.
+\item Part 4: Your two plots.
+\item Part 5: Your plot and your accuracies.
+\end{enumerate}
+\end{document}
+
