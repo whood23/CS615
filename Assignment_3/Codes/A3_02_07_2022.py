@@ -1,5 +1,3 @@
-# Module 1 for forward propagation in Deep Learning
-# Module will contain the bones for reusable machine learning code
 
 ## Important packages
 from abc import ABC, abstractmethod
@@ -23,6 +21,7 @@ class Layer(ABC):
     def getPrevOut(self):
         return self.__prevOut
 
+    @abstractmethod
     def backward(self,gradIn):
         pass
 
@@ -87,6 +86,7 @@ class ReLuLayer(Layer):
         grad_relu_data = np.zeros((inSize,inSize))
         np.fill_diagonal(grad_relu_data,dataIn)
         return grad_relu_data
+        
 
 class SigmoidLayer(Layer):
     def __init__(self):
@@ -215,56 +215,56 @@ class CrossEntropy:
 
 
 if __name__ == '__main__':
-    test_set = np.array([[1,2,3,4]])
-    print()
-    print("Part 4",end = "\n")
+    # test_set = np.array([[1,2,3,4]])
+    # print()
+    # print("Part 4",end = "\n")
 
-    fc = FullyConnectedLayer(4,2)
-    fc_data = fc.forward(test_set)
-    print("FullyConnectedLayer Gradient")
-    print(fc.gradient(), end = "\n\n")
+    # fc = FullyConnectedLayer(4,2)
+    # fc_data = fc.forward(test_set)
+    # print("FullyConnectedLayer Gradient")
+    # print(fc.gradient(), end = "\n\n")
 
-    ru = ReLuLayer()
-    ru_data = ru.forward(test_set)
-    print("ReLuLayer Gradient")
-    print(ru.gradient(), end = "\n\n")
+    # ru = ReLuLayer()
+    # ru_data = ru.forward(test_set)
+    # print("ReLuLayer Gradient")
+    # print(ru.gradient(), end = "\n\n")
 
-    sm = SoftmaxLayer()
-    sm_data = sm.forward(test_set)
-    print("SoftmaxLayer Gradient")
-    print(sm.gradient(), end = "\n\n")
+    # sm = SoftmaxLayer()
+    # sm_data = sm.forward(test_set)
+    # print("SoftmaxLayer Gradient")
+    # print(sm.gradient(), end = "\n\n")
 
-    tanh = TanhLayer()
-    tanh_data = tanh.forward(test_set)
-    print("TanhLayer Gradient")
-    print(tanh.gradient(), end = "\n\n")
+    # tanh = TanhLayer()
+    # tanh_data = tanh.forward(test_set)
+    # print("TanhLayer Gradient")
+    # print(tanh.gradient(), end = "\n\n")
 
-    sig = SigmoidLayer()
-    sig_data = sig.forward(test_set)
-    print("SigmoidLayer Gradient")
-    print(sig.gradient(), end = "\n\n")
+    # sig = SigmoidLayer()
+    # sig_data = sig.forward(test_set)
+    # print("SigmoidLayer Gradient")
+    # print(sig.gradient(), end = "\n\n")
 
-    print("Part 5",end="\n")
-    y = 0
-    yhat = 0.2
+    # print("Part 5",end="\n")
+    # y = 0
+    # yhat = 0.2
 
-    print("LeastSquares")
-    ls = LeastSquares()
-    print("eval:",ls.eval(y,yhat))
-    print("gradient:",ls.gradient(y,yhat),end="\n\n")
+    # print("LeastSquares")
+    # ls = LeastSquares()
+    # print("eval:",ls.eval(y,yhat))
+    # print("gradient:",ls.gradient(y,yhat),end="\n\n")
 
-    print("LogLoss")
-    ls = LogLoss()
-    print("eval:",ls.eval(y,yhat))
-    print("gradient:",ls.gradient(y,yhat),end="\n\n")
+    # print("LogLoss")
+    # ls = LogLoss()
+    # print("eval:",ls.eval(y,yhat))
+    # print("gradient:",ls.gradient(y,yhat),end="\n\n")
 
-    print("CrossEntropy")
-    y = np.array([[1,0,0]])
-    yhat = np.array([[0.2,0.2,0.6]])
-    ls = CrossEntropy()
-    print("eval:")
-    print(ls.eval(y,yhat))
-    print("gradient:")
-    print(ls.gradient(y,yhat), end = "\n\n")
+    # print("CrossEntropy")
+    # y = np.array([[1,0,0]])
+    # yhat = np.array([[0.2,0.2,0.6]])
+    # ls = CrossEntropy()
+    # print("eval:")
+    # print(ls.eval(y,yhat))
+    # print("gradient:")
+    # print(ls.gradient(y,yhat), end = "\n\n")
 
 
