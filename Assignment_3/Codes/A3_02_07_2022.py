@@ -177,11 +177,17 @@ class TanhLayer(Layer):
 
     def gradient(self):
         dataIn = self.getPrevOut()
-        inSize = np.size(dataIn)
-        h_diag = 1-dataIn**2
-        grad_tanh_data = np.zeros((inSize,inSize))
-        np.fill_diagonal(grad_tanh_data,h_diag)
-        return grad_tanh_data
+        totRows = np.size(dataIn, axis=0)  # Grab the total number of rows
+        totColumns = np.size(dataIn, axis=1)  # Grab the total number of columns
+        tensor = np.random.rand(0, totColumns, totColumns)  # Create an empty tensor
+        # Create Preform calculation, final matrix, and tensor append
+        for row in range(totRows):
+            diagonal = 1 - dataIn[row] ** 2  # diagonal calculation
+            gradData = np.zeros((totColumns, totColumns))
+            np.fill_diagonal(gradData, diagonal)
+            tensor = np.concatenate((tensor, gradData[None]), axis=0)
+
+        return tensor
 
     def backward(self,gradIn):
         pass
