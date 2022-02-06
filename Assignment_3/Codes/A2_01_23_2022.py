@@ -1,3 +1,6 @@
+# Module 1 for forward propagation in Deep Learning
+# Module will contain the bones for reusable machine learning code
+
 ## Important packages
 from abc import ABC, abstractmethod
 import numpy as np
@@ -20,7 +23,6 @@ class Layer(ABC):
     def getPrevOut(self):
         return self.__prevOut
 
-    @abstractmethod
     def backward(self,gradIn):
         pass
 
@@ -49,10 +51,6 @@ class InputLayer(Layer):
     def gradient(self):
         pass
 
-    def backward(self,gradIn):
-        pass
-    
-
 # Activation Layers
 ### Edit all the Layer classes
 
@@ -68,9 +66,6 @@ class LinearLayer(Layer):
 
     def gradient(self):
         pass
-    
-    def backward(self,gradIn):
-        pass
 
 class ReLuLayer(Layer):
     def __init__(self):
@@ -85,23 +80,13 @@ class ReLuLayer(Layer):
 
     def gradient(self):
         dataIn = np.copy(self.getPrevIn())
-        totRows = np.size(dataIn, axis=0) # Grab the total number of rows
-        totColumns = np.size(dataIn, axis=1) # Grab the total number of columns
-        tensor = np.random.rand(0,totColumns,totColumns) # Create tensor
-        # Preform Gradient calculation
+        inSize = np.size(dataIn)
         dataIn[dataIn>=0]=1
         dataIn[dataIn<0]=0
-        # Create final matrix and fill tensor
-        for row in range(totRows):
-            gradData = np.zeros((totColumns,totColumns))
-            np.fill_diagonal(gradData,dataIn[row])
-            tensor = np.concatenate((tensor,gradData[None]),axis=0)
-
-        return tensor
-
-    def backward(self,gradIn):
-        pass
-        
+        #create final array
+        grad_relu_data = np.zeros((inSize,inSize))
+        np.fill_diagonal(grad_relu_data,dataIn)
+        return grad_relu_data
 
 class SigmoidLayer(Layer):
     def __init__(self):
@@ -115,20 +100,11 @@ class SigmoidLayer(Layer):
 
     def gradient(self):
         dataIn = self.getPrevOut()
-        totRows = np.size(dataIn, axis=0) # Grab the total number of rows
-        totColumns = np.size(dataIn, axis=1) # Grab the total number of columns
-        tensor = np.random.rand(0,totColumns,totColumns) # Create an empty tensor
-        # Create Preform calculation, final matrix, and tensor append 
-        for row in range(totRows):
-            diagonal = dataIn[row]*(1-dataIn[row]) # diagonal calculation
-            gradData = np.zeros((totColumns,totColumns))
-            np.fill_diagonal(gradData,diagonal)
-            tensor = np.concatenate((tensor,gradData[None]),axis=0)
-
-        return tensor
-
-    def backward(self,gradIn):
-        pass
+        inSize = np.size(dataIn)
+        h_diag = dataIn*(1-dataIn)
+        grad_sig_data = np.zeros((inSize,inSize))
+        np.fill_diagonal(grad_sig_data,h_diag)
+        return grad_sig_data
 
 
 class SoftmaxLayer(Layer):
@@ -137,33 +113,25 @@ class SoftmaxLayer(Layer):
     
     def forward(self,dataIn):
         self.setPrevIn(dataIn)
+        # top, bottom = np.exp(dataIn-(np.amax(dataIn, axis=0))), np.sum(np.exp(dataIn-(np.amax(dataIn, axis=0))))
+        # soft_data = top/bottom
         soft_data = np.exp(dataIn)/np.sum(np.exp(dataIn))
         self.setPrevOut(soft_data)
         return soft_data
 
     def gradient(self):
         dataIn = self.getPrevOut()
-        totRows = np.size(dataIn, axis=0) # Grab the total number of rows
-        totColumns = np.size(dataIn, axis=1) # Grab the total number of columns
-        tensor = np.random.rand(0,totColumns,totColumns) # Create an empty tensor
-        # Run calculation per row, add expanded matrix to empty tensor
-        for row in range(totRows):
-            gradData = np.zeros((totColumns, totColumns))
-            aIndex = 0
-            while aIndex < totColumns:
-                for bIndex in range(0, len(gradData)):
-                    if bIndex == aIndex:
-                        gradData[bIndex, aIndex] = dataIn[row, aIndex] * (1 - dataIn[row, aIndex])
-                    else:
-                        gradData[bIndex, aIndex] = -dataIn[row, aIndex] * dataIn[row, bIndex]
-                aIndex += 1
-
-            tensor = np.concatenate((tensor, gradData[None]), axis=0)
-
-        return tensor
-
-    def backward(self,gradIn):
-        pass
+        inSize = np.size(dataIn)
+        grad_soft_data = np.zeros((inSize,inSize))
+        ar_index = 0
+        while ar_index < len(dataIn[0]):
+            for mat_index in range(0,len(grad_soft_data)):
+                if mat_index == ar_index:
+                    grad_soft_data[mat_index,ar_index] = dataIn[:,ar_index]*(1-dataIn[:,ar_index])
+                else:
+                    grad_soft_data[mat_index,ar_index] = -dataIn[:,ar_index] * dataIn[:,mat_index]
+            ar_index+=1
+        return grad_soft_data
 
 class TanhLayer(Layer):
     def __init__(self):
@@ -182,9 +150,6 @@ class TanhLayer(Layer):
         grad_tanh_data = np.zeros((inSize,inSize))
         np.fill_diagonal(grad_tanh_data,h_diag)
         return grad_tanh_data
-
-    def backward(self,gradIn):
-        pass
 
 
 # Fully Connected Layer
@@ -210,29 +175,16 @@ class FullyConnectedLayer(Layer):
     def setBias(self,bias):
         self.bias = bias
 
-    def updateWeights (self,gradIn,eta=0.0001):
-        dJdb = np.sum(gradIn, axis=0) / gradIn.shape[0]
-        dJdw = (np.matmul(self.getPrevIn().T,gradIn) / gradIn.shape[0])
-
-        self.weights-=eta*dJdw
-        self.bias-=eta*dJdb
-        pass
-
     def forward(self,dataIn):
         self.setPrevIn(dataIn)
         newset = np.matmul(dataIn,self.weights)+self.bias
         self.setPrevOut(newset)
         return newset
-        pass
 
     def gradient(self):
         weights = self.getWeights()
         grad_fc_data = np.transpose(weights)
         return grad_fc_data
-
-    def backward(self,gradIn,eta=0.0001):
-        pass
-
 
 class LeastSquares:
     def eval(self,y,yhat):
@@ -243,9 +195,6 @@ class LeastSquares:
         grad_j = -2*(y-yhat)
         return grad_j
 
-    def backward(self,gradIn):
-        pass
-
 class LogLoss:
     def eval(self,y,yhat):
         j = (yhat**y)*(1-yhat)**(1-y)
@@ -255,9 +204,6 @@ class LogLoss:
         grad_j = -(y-yhat)/(yhat*(1-yhat))
         return grad_j
 
-    def backward(self,gradIn):
-        pass
-
 class CrossEntropy:
     def eval(self,y,yhat):
         j = np.dot(-y,np.log(np.transpose(yhat)))
@@ -266,9 +212,6 @@ class CrossEntropy:
     def gradient(self,y,yhat):
         grad_j = -y/yhat
         return grad_j
-
-    def backward(self,gradIn):
-        pass
 
 
 if __name__ == '__main__':
