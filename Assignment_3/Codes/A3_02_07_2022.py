@@ -1,10 +1,9 @@
-## Important packages
 from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
 import math
 
-### Edit the forward section
+
 class Layer(ABC):
     def __init__(self):
         self.__prevIn = []
