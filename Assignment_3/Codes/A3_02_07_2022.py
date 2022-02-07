@@ -1,6 +1,7 @@
 ## Important packages
 from abc import ABC, abstractmethod
 import numpy as np
+import matplotlib.pyplot as plt
 
 ### Edit the forward section
 class Layer(ABC):
@@ -20,9 +21,13 @@ class Layer(ABC):
     def getPrevOut(self):
         return self.__prevOut
 
-    @abstractmethod
     def backward(self,gradIn):
-        pass
+        sg = self.gradient()
+        grad = np.zeros((gradIn.shape[0], sg.shape[2]))
+        for n in range(gradIn.shape[0]):
+            grad[n, :] = np.matmul(gradIn[n, :], sg[n, :, :])
+
+        return grad
 
     @abstractmethod
     def forward(self,dataIn):
@@ -67,10 +72,22 @@ class LinearLayer(Layer):
         return linear_data
 
     def gradient(self):
-        pass
-    
-    def backward(self,gradIn):
-        pass
+        dataIn = np.copy(self.getPrevIn())
+        totRows = np.size(dataIn, axis=0) # Grab the total number of rows
+        totColumns = np.size(dataIn, axis=1) # Grab the total number of columns
+        tensor = np.random.rand(0,totColumns,totColumns) # Create tensor
+        # Preform Gradient calculation
+        dataIn[dataIn>=0]=1
+        dataIn[dataIn<0]=1
+        # Create final matrix and fill tensor
+        for row in range(totRows):
+            gradData = np.zeros((totColumns,totColumns))
+            np.fill_diagonal(gradData,dataIn[row])
+            tensor = np.concatenate((tensor,gradData[None]),axis=0)
+
+        return tensor
+
+
 
 class ReLuLayer(Layer):
     def __init__(self):
@@ -99,8 +116,6 @@ class ReLuLayer(Layer):
 
         return tensor
 
-    def backward(self,gradIn):
-        pass
         
 
 class SigmoidLayer(Layer):
@@ -114,7 +129,7 @@ class SigmoidLayer(Layer):
         return sig_data
 
     def gradient(self):
-        dataIn = self.getPrevOut()
+        dataIn = self.getPrevIn()
         totRows = np.size(dataIn, axis=0) # Grab the total number of rows
         totColumns = np.size(dataIn, axis=1) # Grab the total number of columns
         tensor = np.random.rand(0,totColumns,totColumns) # Create an empty tensor
@@ -124,11 +139,8 @@ class SigmoidLayer(Layer):
             gradData = np.zeros((totColumns,totColumns))
             np.fill_diagonal(gradData,diagonal)
             tensor = np.concatenate((tensor,gradData[None]),axis=0)
-
         return tensor
 
-    def backward(self,gradIn):
-        pass
 
 
 class SoftmaxLayer(Layer):
@@ -162,8 +174,6 @@ class SoftmaxLayer(Layer):
 
         return tensor
 
-    def backward(self,gradIn):
-        pass
 
 class TanhLayer(Layer):
     def __init__(self):
@@ -189,8 +199,6 @@ class TanhLayer(Layer):
 
         return tensor
 
-    def backward(self,gradIn):
-        pass
 
 
 # Fully Connected Layer
@@ -216,29 +224,27 @@ class FullyConnectedLayer(Layer):
     def setBias(self,bias):
         self.bias = bias
 
-    def updateWeights (self,gradIn,eta=0.0001):
+    def updateWeights(self,gradIn,eta=0.0001):
         dJdb = np.sum(gradIn, axis=0) / gradIn.shape[0]
         dJdw = (np.matmul(self.getPrevIn().T,gradIn) / gradIn.shape[0])
-
-        self.weights-=eta*dJdw
-        self.bias-=eta*dJdb
-        pass
+        self.bias = self.bias - eta * dJdb
+        self.weights = self.weights - eta * dJdw
 
     def forward(self,dataIn):
         self.setPrevIn(dataIn)
         newset = np.matmul(dataIn,self.weights)+self.bias
         self.setPrevOut(newset)
         return newset
-        pass
 
     def gradient(self):
         weights = self.getWeights()
         grad_fc_data = np.transpose(weights)
         return grad_fc_data
 
-    def backward(self,gradIn,eta=0.0001):
-        pass
-
+    def backward(self,gradIn):
+        sg = self.gradient()
+        grad = np.matmul(gradIn, sg)
+        return grad
 
 class LeastSquares:
     def eval(self,y,yhat):
@@ -278,56 +284,146 @@ class CrossEntropy:
 
 
 if __name__ == '__main__':
-    test_set = np.array([[1,2,3,4]])
-    print()
-    print("Part 4",end = "\n")
+    data = np.genfromtxt('KidCreative.csv', delimiter=',', skip_header= True)
+    np.random.seed(0)  # for now... remember to take out
+    np.random.shuffle(data)  # shuffle data
 
-    fc = FullyConnectedLayer(4,2)
-    fc_data = fc.forward(test_set)
-    print("FullyConnectedLayer Gradient")
-    print(fc.gradient(), end = "\n\n")
 
-    ru = ReLuLayer()
-    ru_data = ru.forward(test_set)
-    print("ReLuLayer Gradient")
-    print(ru.gradient(), end = "\n\n")
+    def split(data, percent):
+        totRows = np.size(data, axis=0)
+        X, Y = data[:round(totRows * percent), :], data[round(totRows * percent):, :]
+        return X, Y
 
-    sm = SoftmaxLayer()
-    sm_data = sm.forward(test_set)
-    print("SoftmaxLayer Gradient")
-    print(sm.gradient(), end = "\n\n")
+    percent = 2/3
+    first_half,second_half = split(data, percent)
 
-    tanh = TanhLayer()
-    tanh_data = tanh.forward(test_set)
-    print("TanhLayer Gradient")
-    print(tanh.gradient(), end = "\n\n")
+    train_data = first_half[:, 2:]
+    train_comp = first_half[:, 1:2]
+    test_data = second_half[:, 2:]
+    test_comp = second_half[:, 1:2]
 
-    sig = SigmoidLayer()
-    sig_data = sig.forward(test_set)
-    print("SigmoidLayer Gradient")
-    print(sig.gradient(), end = "\n\n")
+    L1 = InputLayer(train_data)
+    L2 = FullyConnectedLayer(train_data.shape[1],1)
+    L3 = SigmoidLayer()
+    L4 = LogLoss()
 
-    print("Part 5",end="\n")
-    y = 0
-    yhat = 0.2
+    layers = [L1,L2,L3,L4]
 
-    print("LeastSquares")
-    ls = LeastSquares()
-    print("eval:",ls.eval(y,yhat))
-    print("gradient:",ls.gradient(y,yhat),end="\n\n")
+    epochs = 10
+    counter = 0
+    storage = []
+    epoch_storage = []
+    eta = 0.0001
+    H = train_data
+    prev_check = 0
+    endDiff = 1 * (10 ** -10)
+    while counter <= epochs:
+        # Forward
+        for forwardLayer in range(len(layers)-1):
+            H = layers[forwardLayer].forward(H)
 
-    print("LogLoss")
-    ls = LogLoss()
-    print("eval:",ls.eval(y,yhat))
-    print("gradient:",ls.gradient(y,yhat),end="\n\n")
+        # Storing each evaluation in a list
+        check = np.mean(layers[-1].eval(train_comp, H))
+        if np.absolute(check - prev_check) <= endDiff:
+            storage.append(check)
+            break
+        else:
+            prev_check = check
+            storage.append(check)
 
-    print("CrossEntropy")
-    y = np.array([[1,0,0]])
-    yhat = np.array([[0.2,0.2,0.6]])
-    ls = CrossEntropy()
-    print("eval:")
-    print(ls.eval(y,yhat))
-    print("gradient:")
-    print(ls.gradient(y,yhat), end = "\n\n")
+        # run gradient on the eval layer
+        grad = layers[-1].gradient(train_comp, H)
+        # Backwards
+        for backwardLayer in range(len(layers)-2,0,-1):
+            grad = layers[backwardLayer].backward(grad)
+
+            if isinstance(layers[backwardLayer], FullyConnectedLayer):
+                layers[backwardLayer].updateWeights(grad,eta)
+
+        epoch_storage.append(counter)
+        counter+=1
+
+    print(storage)
+    # plt.plot(epoch_storage, storage)
+    # plt.title('Epoch vs Log Loss')
+    # plt.xlabel('Epoch')
+    # plt.ylabel('Log Loss')
+    # plt.show()
+
+
+
+    # eta = 0.0001
+    # # termination criteria
+    # epochs = 10000 # when we hit this number of epochs
+    # counter = 0
+    # endDiff = 1*(10**-10) # when the differences of our outputs increment is at least this
+    # placeholder = 0
+    # h = train_data
+    #
+    # train_lr = []
+    # train_epoc = []
+    # test_lr = []
+    # test_epoc = []
+    #
+    # while counter <= epochs:
+    #     # forward
+    #     for i in range(len(layers)-1):
+    #         h = layers[i].forward(h)
+    #     # error checker
+    #     minimize = layers[-1].eval(train_comp,h)
+    #     if np.absolute(minimize - placeholder).all() <= endDiff:
+    #         train_lr.append(minimize)
+    #         train_epoc.append(counter)
+    #         break
+    #     if counter == 0:
+    #         grad = layers[-1].gradient(train_comp,h)
+    #     # backwards
+    #     for i in range(len(layers) - 2, 0, -1):
+    #         newgrad = layers[i].backward(grad)
+    #
+    #         if isinstance(layers[i], FullyConnectedLayer):
+    #             layers[i].updateWeights(grad,eta)
+    #         grad = newgrad
+    #
+    #     counter+=1
+    #     train_lr.append(minimize)
+    #     train_epoc.append(counter)
+    #
+    # print(train_lr)
+    # print(train_epoc)
+    #
+    # counter = 0
+    # placeholder = 0
+    # h = test_data
+    #
+    # while counter <= epochs:
+    #     # forward
+    #     for i in range(len(layers)-1):
+    #         h = layers[i].forward(h)
+    #     # error checker
+    #     minimize = layers[-1].eval(test_comp,h)
+    #     if np.absolute(minimize - placeholder).all() <= endDiff:
+    #         test_lr.append(minimize)
+    #         test_epoc.append(counter)
+    #         break
+    #     if counter == 0:
+    #         grad = layers[-1].gradient(test_comp,h)
+    #     # backwards
+    #     for i in range(len(layers) - 2, 0, -1):
+    #         newgrad = layers[i].backward(grad)
+    #
+    #         if isinstance(layers[i], FullyConnectedLayer):
+    #             layers[i].updateWeights(grad,eta)
+    #         grad = newgrad
+    #
+    #     counter+=1
+    #     test_lr.append(minimize)
+    #     test_epoc.append(counter)
+    #
+    # print(test_lr)
+    # print(test_epoc)
+
+
+
 
 
