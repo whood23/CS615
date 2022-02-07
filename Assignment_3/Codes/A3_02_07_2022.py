@@ -289,14 +289,14 @@ class runLayers:
         self.eta = eta
         self.eval_method = eval_method
 
-    def forwardRun(self):
-        H = self.X
+    def forwardRun(self, X):
+        H = X
         for i in range(len(self.layers)-1):
             H = self.layers[i].forward(H)
         return H
 
-    def backRun(self,H):
-        grad = self.layers[-1].gradient(self.Y, H)
+    def backRun(self,Y, H):
+        grad = self.layers[-1].gradient(Y, H)
         for i in range(len(self.layers) - 2, 0, -1):
             newgrad = self.layers[i].backward(grad)
 
@@ -333,9 +333,9 @@ class runLayers:
 
         for j in range(self.epochs):
             # Forward
-            H = self.forwardRun()
+            H = self.forwardRun(self.X)
             # Backwards
-            self.backRun(H)
+            self.backRun(self.Y,H)
             error = self.objSelect(H)
             errorStorage.append(error)
             epochStorage.append(j)
@@ -347,6 +347,12 @@ class runLayers:
             prevError = error
 
         return epochStorage,errorStorage
+    
+    def classify(self, X):
+        classification = self.forwardRun(X)
+        classification[classification < 0.5] = 0
+        classification[classification >= 0.5] = 1
+        return classification
 
 class splitData:
     def __init__(self, data, percent = 2/3, fsc = 'norm', fscRangeFrom = 0, fscRangeTo = 0):
@@ -460,14 +466,23 @@ if __name__ == '__main__':
     L3 = SigmoidLayer()
     L4 = LogLoss()
     layers = [L1, L2, L3, L4]
+    ep = 10000
+    print("Number of epochs: {}".format(ep))
     "Training"
     # Run test
-    run = runLayers(XTrain, YTrain, layers, 40000, 0.0001)
+    run = runLayers(XTrain, YTrain, layers, ep, 0.0001)
     epochStorageTrain, errorStorageTrain = run.allRun()
+    trainClassify = run.classify(XTrain)
+    binaryClassify = (YTrain == trainClassify)
+    print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis = 0)) * 100))
+
     "Validation"
     # Run Test
-    run = runLayers(XTrain, YTrain, layers, 40000, 0.0001)
+    run = runLayers(XTest, YTest, layers, ep, 0.0001)
     epochStorageTest, errorStorageTest = run.allRun()
+    testClassify = run.classify(XTest)
+    binaryClassify = (YTest == testClassify)
+    print("Validation Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTest, axis=0)) * 100))
     # Plot
     plot(epochStorageTrain, errorStorageTrain)
     plot(epochStorageTest, errorStorageTest)
