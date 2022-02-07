@@ -129,7 +129,7 @@ class SigmoidLayer(Layer):
         return sig_data
 
     def gradient(self):
-        dataIn = self.getPrevIn()
+        dataIn = self.getPrevOut()
         totRows = np.size(dataIn, axis=0) # Grab the total number of rows
         totColumns = np.size(dataIn, axis=1) # Grab the total number of columns
         tensor = np.random.rand(0,totColumns,totColumns) # Create an empty tensor
@@ -208,7 +208,6 @@ class FullyConnectedLayer(Layer):
     def __init__(self, sizeIn, sizeOut):
         self.sizeIn = sizeIn
         self.sizeOut = sizeOut
-        np.random.seed(0)
         self.weights = np.random.uniform(-0.0001, 0.0001,size=(sizeIn,sizeOut))
         self.bias = np.random.uniform(-0.0001, 0.0001,size=(1,sizeOut))
 
@@ -227,8 +226,8 @@ class FullyConnectedLayer(Layer):
     def updateWeights(self,gradIn,eta=0.0001):
         dJdb = np.sum(gradIn, axis=0) / gradIn.shape[0]
         dJdw = (np.matmul(self.getPrevIn().T,gradIn) / gradIn.shape[0])
-        self.bias = self.bias - eta * dJdb
-        self.weights = self.weights - eta * dJdw
+        self.bias = self.bias - (eta * dJdb)
+        self.weights = self.weights - (eta * dJdw)
 
     def forward(self,dataIn):
         self.setPrevIn(dataIn)
@@ -260,11 +259,11 @@ class LeastSquares:
 
 class LogLoss:
     def eval(self,y,yhat):
-        j = (yhat**y)*(1-yhat)**(1-y)
+        j = -1 * ((np.log(yhat+10e-7)*y)+(1-y)*np.log(1-yhat + 10e-7))
         return j
 
     def gradient(self,y,yhat):
-        grad_j = -(y-yhat)/(yhat*(1-yhat))
+        grad_j = -(y-yhat)/(yhat*(1-yhat) + 10e-7)
         return grad_j
 
     def backward(self,gradIn):
@@ -284,17 +283,68 @@ class CrossEntropy:
 
 
 if __name__ == '__main__':
-    data = np.genfromtxt('KidCreative.csv', delimiter=',', skip_header= True)
-    np.random.seed(0)  # for now... remember to take out
-    np.random.shuffle(data)  # shuffle data
-
-
     def split(data, percent):
         totRows = np.size(data, axis=0)
         X, Y = data[:round(totRows * percent), :], data[round(totRows * percent):, :]
         return X, Y
 
-    percent = 2/3
+    percent = 2 / 3
+    np.random.seed(0)
+    """
+    Part 4
+    """
+    data = np.genfromtxt('mcpd_augmented.csv', delimiter=',', skip_header= True)
+    np.random.shuffle(data)  # shuffle data
+    first_half,second_half = split(data, percent)
+    train_data = first_half[:, :-1]
+    train_comp = first_half[:, -1:]
+    test_data = second_half[:, :-1]
+    test_comp = second_half[:, -1:]
+
+    L1 = InputLayer(train_data)
+    L2 = FullyConnectedLayer(train_data.shape[1],1)
+    L3 = LeastSquares()
+
+    layers = [L1, L2, L3]
+
+    epochs = 10000
+    storage = []
+    epoch_storage = []
+    eta = 0.0001
+    prev_check = 0
+    endDiff = 1 * (10 ** -10)
+    for j in range(epochs):
+        H = train_data
+        # Forward
+        for i in range(len(layers) - 1):
+            H = layers[i].forward(H)
+
+        # run gradient on the eval layer
+        grad = layers[-1].gradient(train_comp, H)
+        # Backwards
+        for i in range(len(layers) - 2, 0, -1):
+            newgrad = layers[i].backward(grad)
+
+            if isinstance(layers[i], FullyConnectedLayer):
+                layers[i].updateWeights(grad, eta)
+
+            grad = newgrad
+        # Storing each evaluation in a list
+        check = np.mean(layers[-1].eval(train_comp, H))
+
+        storage.append(check)
+        epoch_storage.append(j)
+        if np.absolute(check - prev_check) < endDiff:
+            break
+
+        prev_check = check
+
+
+    """
+    Part 5
+    """
+    data = np.genfromtxt('KidCreative.csv', delimiter=',', skip_header= True)
+    np.random.shuffle(data)  # shuffle data
     first_half,second_half = split(data, percent)
 
     train_data = first_half[:, 2:]
@@ -309,121 +359,85 @@ if __name__ == '__main__':
 
     layers = [L1,L2,L3,L4]
 
-    epochs = 10
-    counter = 0
+    epochs = 10000
     storage = []
     epoch_storage = []
     eta = 0.0001
-    H = train_data
     prev_check = 0
     endDiff = 1 * (10 ** -10)
-    while counter <= epochs:
+    for j in range(epochs):
+        H = train_data
         # Forward
-        for forwardLayer in range(len(layers)-1):
-            H = layers[forwardLayer].forward(H)
-
-        # Storing each evaluation in a list
-        check = np.mean(layers[-1].eval(train_comp, H))
-        if np.absolute(check - prev_check) <= endDiff:
-            storage.append(check)
-            break
-        else:
-            prev_check = check
-            storage.append(check)
+        for i in range(len(layers)-1):
+            H = layers[i].forward(H)
 
         # run gradient on the eval layer
         grad = layers[-1].gradient(train_comp, H)
         # Backwards
-        for backwardLayer in range(len(layers)-2,0,-1):
-            grad = layers[backwardLayer].backward(grad)
+        for i in range(len(layers)-2,0,-1):
+            newgrad = layers[i].backward(grad)
 
-            if isinstance(layers[backwardLayer], FullyConnectedLayer):
-                layers[backwardLayer].updateWeights(grad,eta)
+            if isinstance(layers[i], FullyConnectedLayer):
+                layers[i].updateWeights(grad,eta)
 
-        epoch_storage.append(counter)
-        counter+=1
+            grad = newgrad
+        # Storing each evaluation in a list
+        check = np.mean(layers[-1].eval(train_comp, H))
 
-    print(storage)
-    # plt.plot(epoch_storage, storage)
-    # plt.title('Epoch vs Log Loss')
-    # plt.xlabel('Epoch')
-    # plt.ylabel('Log Loss')
-    # plt.show()
+        storage.append(check)
+        epoch_storage.append(j)
+        if np.absolute(check - prev_check) < endDiff:
+            break
 
+        prev_check = check
 
-
-    # eta = 0.0001
-    # # termination criteria
-    # epochs = 10000 # when we hit this number of epochs
-    # counter = 0
-    # endDiff = 1*(10**-10) # when the differences of our outputs increment is at least this
-    # placeholder = 0
-    # h = train_data
-    #
-    # train_lr = []
-    # train_epoc = []
-    # test_lr = []
-    # test_epoc = []
-    #
-    # while counter <= epochs:
-    #     # forward
-    #     for i in range(len(layers)-1):
-    #         h = layers[i].forward(h)
-    #     # error checker
-    #     minimize = layers[-1].eval(train_comp,h)
-    #     if np.absolute(minimize - placeholder).all() <= endDiff:
-    #         train_lr.append(minimize)
-    #         train_epoc.append(counter)
-    #         break
-    #     if counter == 0:
-    #         grad = layers[-1].gradient(train_comp,h)
-    #     # backwards
-    #     for i in range(len(layers) - 2, 0, -1):
-    #         newgrad = layers[i].backward(grad)
-    #
-    #         if isinstance(layers[i], FullyConnectedLayer):
-    #             layers[i].updateWeights(grad,eta)
-    #         grad = newgrad
-    #
-    #     counter+=1
-    #     train_lr.append(minimize)
-    #     train_epoc.append(counter)
-    #
-    # print(train_lr)
-    # print(train_epoc)
-    #
-    # counter = 0
-    # placeholder = 0
-    # h = test_data
-    #
-    # while counter <= epochs:
-    #     # forward
-    #     for i in range(len(layers)-1):
-    #         h = layers[i].forward(h)
-    #     # error checker
-    #     minimize = layers[-1].eval(test_comp,h)
-    #     if np.absolute(minimize - placeholder).all() <= endDiff:
-    #         test_lr.append(minimize)
-    #         test_epoc.append(counter)
-    #         break
-    #     if counter == 0:
-    #         grad = layers[-1].gradient(test_comp,h)
-    #     # backwards
-    #     for i in range(len(layers) - 2, 0, -1):
-    #         newgrad = layers[i].backward(grad)
-    #
-    #         if isinstance(layers[i], FullyConnectedLayer):
-    #             layers[i].updateWeights(grad,eta)
-    #         grad = newgrad
-    #
-    #     counter+=1
-    #     test_lr.append(minimize)
-    #     test_epoc.append(counter)
-    #
-    # print(test_lr)
-    # print(test_epoc)
+    plt.plot(epoch_storage, storage)
+    plt.title('Epoch vs Log Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Log Loss')
 
 
+    L1 = InputLayer(test_data)
+    L2 = FullyConnectedLayer(test_data.shape[1],1)
+    L3 = SigmoidLayer()
+    L4 = LogLoss()
 
+    layers = [L1,L2,L3,L4]
+
+    epochs = 10000
+    storage2 = []
+    epoch_storage2 = []
+    eta = 0.0001
+    prev_check = 0
+    endDiff = 1 * (10 ** -10)
+    for j in range(epochs):
+        H = test_data
+        # Forward
+        for i in range(len(layers)-1):
+            H = layers[i].forward(H)
+
+        # run gradient on the eval layer
+        grad = layers[-1].gradient(test_comp, H)
+        # Backwards
+        for i in range(len(layers)-2,0,-1):
+            newgrad = layers[i].backward(grad)
+
+            if isinstance(layers[i], FullyConnectedLayer):
+                layers[i].updateWeights(grad,eta)
+
+            grad = newgrad
+        # Storing each evaluation in a list
+        check = np.mean(layers[-1].eval(test_comp, H))
+
+        storage2.append(check)
+        epoch_storage2.append(j)
+        if np.absolute(check - prev_check) < endDiff:
+            break
+
+        prev_check = check
+
+    plt.plot(epoch_storage2, storage2)
+    plt.legend(['Training','Validation'])
+    plt.show()
 
 
