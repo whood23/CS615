@@ -38,7 +38,6 @@ class Layer(ABC):
     def gradient(self):
         pass
 
-### Edit everything except the Gradient
 class InputLayer(Layer):
     def __init__(self, dataIn):
         self.dataIn = dataIn
@@ -308,7 +307,7 @@ class runLayers:
             grad = newgrad
 
     def mapeRun(self,H):
-        MAPE = np.sum(np.absolute((self.Y - H) / self.Y)) / np.size(H, axis=0)
+        MAPE = np.mean(np.absolute((self.Y - H) / self.Y))
         return MAPE
 
     def rmseRun(self,H):
@@ -464,11 +463,11 @@ if __name__ == '__main__':
     layers = [L1, L2, L3, L4]
     "Training"
     # Run test
-    run = runLayers(XTrain, YTrain, layers, 10000, 0.0001)
+    run = runLayers(XTrain, YTrain, layers, 40000, 0.0001)
     epochStorageTrain, errorStorageTrain = run.allRun()
     "Validation"
     # Run Test
-    run = runLayers(XTrain, YTrain, layers, 10000, 0.0001)
+    run = runLayers(XTrain, YTrain, layers, 40000, 0.0001)
     epochStorageTest, errorStorageTest = run.allRun()
     # Plot
     plot(epochStorageTrain, errorStorageTrain)
