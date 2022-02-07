@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 ### Edit the forward section
 class Layer(ABC):
@@ -281,163 +282,197 @@ class CrossEntropy:
     def backward(self,gradIn):
         pass
 
+class runLayers:
+    def __init__(self, X, Y, layers, epochs, eta, eval_method = 'none'):
+        self.X = X
+        self.Y = Y
+        self.layers = layers
+        self.epochs = epochs
+        self.eta = eta
+        self.eval_method = eval_method
+
+    def forwardRun(self):
+        H = self.X
+        for i in range(len(self.layers)-1):
+            H = self.layers[i].forward(H)
+        return H
+
+    def backRun(self,H):
+        grad = self.layers[-1].gradient(self.Y, H)
+        for i in range(len(self.layers) - 2, 0, -1):
+            newgrad = self.layers[i].backward(grad)
+
+            if isinstance(self.layers[i], FullyConnectedLayer):
+                self.layers[i].updateWeights(grad, self.eta)
+
+            grad = newgrad
+
+    def mapeRun(self,H):
+        MAPE = np.sum(np.absolute((self.Y - H) / self.Y)) / np.size(H, axis=0)
+        return MAPE
+
+    def rmseRun(self,H):
+        RMSE = math.sqrt(np.matmul(np.transpose(self.Y-H), (self.Y-H)) / np.size(H, axis=0))
+        return RMSE
+
+    def objfunRun(self,H):
+        objfunRet = np.mean(self.layers[-1].eval(self.Y, H))
+        return objfunRet
+
+    def objSelect(self,H):
+        if self.eval_method == 'none':
+            return self.objfunRun(H)
+        elif self.eval_method == 'mape':
+            return self.mapeRun(H)
+        elif self.eval_method == 'rmse':
+            return self.rmseRun(H)
+
+    def allRun(self):
+        endDiff = 1e-10
+        epochStorage = []
+        errorStorage = []
+        prevError = 0
+
+        for j in range(self.epochs):
+            # Forward
+            H = self.forwardRun()
+            # Backwards
+            self.backRun(H)
+            error = self.objSelect(H)
+            errorStorage.append(error)
+            epochStorage.append(j)
+
+            if np.absolute(error - prevError) < endDiff:
+                return epochStorage,errorStorage
+                break
+
+            prevError = error
+
+        return epochStorage,errorStorage
+
+class splitData:
+    def __init__(self, data, percent = 2/3, fsc = 'norm', fscRangeFrom = 0, fscRangeTo = 0):
+        self.data = data
+        self.percent = percent
+        np.random.seed(0)
+        np.random.shuffle(self.data)
+        self.fsc = fsc
+        self.fscRangeFrom = fscRangeFrom
+        self.fscRangeTo = fscRangeTo
+
+    def firstSplit(self):
+        totRows = np.size(self.data, axis=0)
+        train, test = self.data[:round(totRows * self.percent), :], self.data[round(totRows * self.percent):, :]
+        return train, test
+
+    def finalSplitCriteria(self, splitData):
+        if self.fsc == 'norm':
+            X = splitData[:, :-1]
+            Y = splitData[:, -1:]
+            return X, Y
+        elif self.fsc == 'begin':
+            X = splitData[:, self.fscRangeTo:]
+            Y = splitData[:, self.fscRangeFrom:self.fscRangeTo]
+            return X, Y
+        elif self.fsc == 'end':
+            X = splitData[:, :self.fscRangeTo]
+            Y = splitData[:, self.fscRangeTo:self.fscRangeFrom]
+            return X, Y
+
+    def finalSplit(self, train, test):
+        XTrain, YTrain = self.finalSplitCriteria(train)
+        XTest, YTest = self.finalSplitCriteria(test)
+        return XTrain, XTest, YTrain, YTest
+
+    def fullSplit(self):
+        train, test = self.firstSplit()
+        XTrain, XTest, YTrain, YTest = self.finalSplit(train, test)
+        return XTrain, XTest, YTrain, YTest
+
 
 if __name__ == '__main__':
-    def split(data, percent):
-        totRows = np.size(data, axis=0)
-        X, Y = data[:round(totRows * percent), :], data[round(totRows * percent):, :]
-        return X, Y
 
-    percent = 2 / 3
-    np.random.seed(0)
+    def plot(xPlotData,yPlotData):
+        plt.plot(xPlotData, yPlotData)
+        plt.xlabel('Epoch')
+        plt.ylabel('Evaluation Function')
+        return plt
+
     """
     Part 4
     """
+    # Call in data
     data = np.genfromtxt('mcpd_augmented.csv', delimiter=',', skip_header= True)
-    np.random.shuffle(data)  # shuffle data
-    first_half,second_half = split(data, percent)
-    train_data = first_half[:, :-1]
-    train_comp = first_half[:, -1:]
-    test_data = second_half[:, :-1]
-    test_comp = second_half[:, -1:]
-
-    L1 = InputLayer(train_data)
-    L2 = FullyConnectedLayer(train_data.shape[1],1)
+    # Split into train and testing sets
+    spl = splitData(data)
+    XTrain, XTest, YTrain, YTest = spl.fullSplit()
+    "MAPE"
+    # Call layers
+    L1 = InputLayer(XTrain)
+    L2 = FullyConnectedLayer(XTrain.shape[1],1)
     L3 = LeastSquares()
-
     layers = [L1, L2, L3]
+    "Training"
+    # Run Test
+    run = runLayers(XTrain, YTrain, layers, 10000, 0.0001, 'mape')
+    epochStorageTrain, errorStorageTrain = run.allRun()
+    "Validation"
+    # Run Test
+    run = runLayers(XTest, YTest, layers, 10000, 0.0001, 'mape')
+    epochStorageTest, errorStorageTest = run.allRun()
+    # Plot
+    plot(epochStorageTrain, errorStorageTrain)
+    plot(epochStorageTest, errorStorageTest)
+    plt.title('MAPE Vs Epoch')
+    plt.legend(["Training", "Validation"])
+    plt.show()
 
-    epochs = 10000
-    storage = []
-    epoch_storage = []
-    eta = 0.0001
-    prev_check = 0
-    endDiff = 1 * (10 ** -10)
-    for j in range(epochs):
-        H = train_data
-        # Forward
-        for i in range(len(layers) - 1):
-            H = layers[i].forward(H)
-
-        # run gradient on the eval layer
-        grad = layers[-1].gradient(train_comp, H)
-        # Backwards
-        for i in range(len(layers) - 2, 0, -1):
-            newgrad = layers[i].backward(grad)
-
-            if isinstance(layers[i], FullyConnectedLayer):
-                layers[i].updateWeights(grad, eta)
-
-            grad = newgrad
-        # Storing each evaluation in a list
-        check = np.mean(layers[-1].eval(train_comp, H))
-
-        storage.append(check)
-        epoch_storage.append(j)
-        if np.absolute(check - prev_check) < endDiff:
-            break
-
-        prev_check = check
-
+    "RMSE"
+    # Call Layers
+    L1 = InputLayer(XTrain)
+    L2 = FullyConnectedLayer(XTrain.shape[1],1)
+    L3 = LeastSquares()
+    layers = [L1, L2, L3]
+    "Training"
+    # Run Test
+    run = runLayers(XTrain, YTrain, layers, 10000, 0.0001, 'rmse')
+    epochStorageTrain, errorStorageTrain = run.allRun()
+    "Validation"
+    # Run Test
+    run = runLayers(XTest, YTest, layers, 10000, 0.0001, 'rmse')
+    epochStorageTest, errorStorageTest = run.allRun()
+    # Plot
+    plot(epochStorageTrain, errorStorageTrain)
+    plot(epochStorageTest, errorStorageTest)
+    plt.title('RMSE Vs Epoch')
+    plt.legend(["Training", "Validation"])
+    plt.show()
 
     """
     Part 5
     """
+    # Call in data
     data = np.genfromtxt('KidCreative.csv', delimiter=',', skip_header= True)
-    np.random.shuffle(data)  # shuffle data
-    first_half,second_half = split(data, percent)
-
-    train_data = first_half[:, 2:]
-    train_comp = first_half[:, 1:2]
-    test_data = second_half[:, 2:]
-    test_comp = second_half[:, 1:2]
-
-    L1 = InputLayer(train_data)
-    L2 = FullyConnectedLayer(train_data.shape[1],1)
+    # Create train and testing sets
+    spl = splitData(data, 2/3, 'begin', 1, 2)
+    XTrain, XTest, YTrain, YTest = spl.fullSplit()
+    # Call layers
+    L1 = InputLayer(XTrain)
+    L2 = FullyConnectedLayer(XTrain.shape[1],1)
     L3 = SigmoidLayer()
     L4 = LogLoss()
-
-    layers = [L1,L2,L3,L4]
-
-    epochs = 10000
-    storage = []
-    epoch_storage = []
-    eta = 0.0001
-    prev_check = 0
-    endDiff = 1 * (10 ** -10)
-    for j in range(epochs):
-        H = train_data
-        # Forward
-        for i in range(len(layers)-1):
-            H = layers[i].forward(H)
-
-        # run gradient on the eval layer
-        grad = layers[-1].gradient(train_comp, H)
-        # Backwards
-        for i in range(len(layers)-2,0,-1):
-            newgrad = layers[i].backward(grad)
-
-            if isinstance(layers[i], FullyConnectedLayer):
-                layers[i].updateWeights(grad,eta)
-
-            grad = newgrad
-        # Storing each evaluation in a list
-        check = np.mean(layers[-1].eval(train_comp, H))
-
-        storage.append(check)
-        epoch_storage.append(j)
-        if np.absolute(check - prev_check) < endDiff:
-            break
-
-        prev_check = check
-
-    plt.plot(epoch_storage, storage)
-    plt.title('Epoch vs Log Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Log Loss')
-
-
-    L1 = InputLayer(test_data)
-    L2 = FullyConnectedLayer(test_data.shape[1],1)
-    L3 = SigmoidLayer()
-    L4 = LogLoss()
-
-    layers = [L1,L2,L3,L4]
-
-    epochs = 10000
-    storage2 = []
-    epoch_storage2 = []
-    eta = 0.0001
-    prev_check = 0
-    endDiff = 1 * (10 ** -10)
-    for j in range(epochs):
-        H = test_data
-        # Forward
-        for i in range(len(layers)-1):
-            H = layers[i].forward(H)
-
-        # run gradient on the eval layer
-        grad = layers[-1].gradient(test_comp, H)
-        # Backwards
-        for i in range(len(layers)-2,0,-1):
-            newgrad = layers[i].backward(grad)
-
-            if isinstance(layers[i], FullyConnectedLayer):
-                layers[i].updateWeights(grad,eta)
-
-            grad = newgrad
-        # Storing each evaluation in a list
-        check = np.mean(layers[-1].eval(test_comp, H))
-
-        storage2.append(check)
-        epoch_storage2.append(j)
-        if np.absolute(check - prev_check) < endDiff:
-            break
-
-        prev_check = check
-
-    plt.plot(epoch_storage2, storage2)
-    plt.legend(['Training','Validation'])
+    layers = [L1, L2, L3, L4]
+    "Training"
+    # Run test
+    run = runLayers(XTrain, YTrain, layers, 10000, 0.0001)
+    epochStorageTrain, errorStorageTrain = run.allRun()
+    "Validation"
+    # Run Test
+    run = runLayers(XTrain, YTrain, layers, 10000, 0.0001)
+    epochStorageTest, errorStorageTest = run.allRun()
+    # Plot
+    plot(epochStorageTrain, errorStorageTrain)
+    plot(epochStorageTest, errorStorageTest)
+    plt.title('Log Loss vs Epoch')
+    plt.legend(["Training", "Validation"])
     plt.show()
-
-
