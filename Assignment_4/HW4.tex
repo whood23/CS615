@@ -1,0 +1,233 @@
+\title{CS 615 - Deep Learning}
+\author{
+        Assignment 4 - Exploring Hyperparameters\\
+Winter 2022
+}
+\date{}
+\documentclass[12pt]{article}
+\usepackage[margin=0.7in]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{comment}
+\usepackage{amsmath}
+\usepackage{multirow}  %% To have multirows in table
+\includecomment{versionB}
+\usepackage{listings}
+%\excludecomment{versionB}
+
+\usepackage{xcolor}
+\usepackage{hyperref}
+\newcommand\red[1]{\textcolor{red}{#1}} % add \red{} command 
+
+
+\begin{document}
+\maketitle
+
+
+\section*{Introduction}
+In this assignment we will explore the effect of different hyperparameter choices and apply a multi--class classifier to a dataset.\\
+
+\section*{Programming Language/Environment}
+As per the syllabus, we are working in Python 3.x and you must constrain yourself to using numpy, matplotlib, pillow and opencv--python add--on libraries.
+
+\section*{Allowable Libraries/Functions}
+In addition, you \textbf{cannot} use any ML functions to do the training or evaluation for you.  Using basic statistical and linear algebra function\red{s} like \emph{mean}, \emph{std}, \emph{cov} etc.. is fine, but using ones like \emph{train}, \emph{confusion}, etc.. is not. Using any ML--related functions, may result in a \textbf{zero} for the programming component.  In general, use the ``spirit of the assignment'' (where we're implementing things from scratch) as your guide, but if you want clarification on if can use a particular function, DM the professor on Discord.
+
+
+\section*{Grading}
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+Part 1 (Theory) & 10pts\\
+Part 2 (Visualizing an Objective Function) & 10pts\\
+Part 3 (Exploring Model Initialization Effects) & 20pts\\
+Part 4 (Exploring Learning Rate Effects) & 20pts\\
+Part 5 (Adaptive Learning Rate) & 20pts\\
+Part 6 (Multi--class classification) & 20pts\\
+\hline
+\end{tabular}
+\caption{Grading Rubric}
+\end{center}
+\end{table}
+
+\newpage
+\section*{Datasets}
+\paragraph{MNIST Database } 
+The MNIST Database is a dataset of hand--written digits from 0 to 9.  It contains 60,000 training samples, and 10,000 testing samples, each of which is a $28\times28$ image.
+
+\noindent
+You have been provided two \emph{CSV} files, one with the training data, and one with the testing data.  This file is arranged so that each row pertains to an observation, and in each row, the first column is the \emph{target class} $\in \{0,9\}$.  The remaining 784 columns are the \emph{features} of that observation, in this case, the pixel values.  \\
+
+\noindent
+For more information about the dataset, you can visit:  \href{http://yann.lecun.com/exdb/mnist/}{http://yann.lecun.com/exdb/mnist/}
+
+
+\newpage
+\section{Theory}
+\emph{Whenever possible, please leave your answers as fractions so the question of rounding and loss of precision therein does not come up.}
+
+\begin{enumerate}
+\item What would the \emph{one--hot encoding} be for the following set of multi--class labels (5pts)?
+$$Y=\begin{bmatrix}
+0\\
+1\\
+1\\
+2\\
+3\\
+0\\
+\end{bmatrix}$$
+\item Given the objective function $J=\frac{1}{4}(x_1 w_1)^4-\frac{4}{3}(x_1 w_1)^3+\frac{3}{2}(x_1 w_1)^2$ (\emph{I know you already did this in HW3, but it will be relevant for HW4 as well}):
+\begin{enumerate}
+\item What is the gradient $\frac{\partial J}{\partial w_1}$ (1pt)?
+\item What are the locations of the extrema points for your objective function if $x_1=1$?  Recall that to find these you set the derivative to zero and solve for, in this case, $w_1$. (3pts)
+\item What does $J$ evaluate to at each of your extrema points, again when $x_1=1$ (1pts)?
+\end{enumerate}
+
+\end{enumerate}
+
+\newpage
+\section{Visualizing an Objection Function}\label{vof}
+For the next few parts we'll use the objective function $J=\frac{1}{4}(x_1 w_1)^4-\frac{4}{3}(x_1 w_1)^3+\frac{3}{2}(x_1 w_1)^2$ from the theory section.  First let's get a look at this objective function.  Using $x_1=1$, plot $w_1$ vs $J$, varying $w_1$ from -2 to +5 in increments of 0.1.  You will put this figure in your report.
+
+
+\section{Exploring Model Initialization Effects}
+Let's explore the effects of choosing different initializations for our parameter(s).  In the theory part you derived the partial of $J=\frac{1}{4}(x_1 w_1)^4-\frac{4}{3}(x_1 w_1)^3+\frac{3}{2}(x_1 w_1)^2$ with respect to the parameter $w_1$.  Now you will run gradient descent on this for four different initial values of $w_1$ to see the effect of weight initialization and local solutions.\\  
+
+\noindent
+Perform gradient descent as follows:
+\begin{itemize}
+\item Run through 100 epochs.
+\item Use a learning rate of $\eta=0.1$.
+\item Evaluate $J$ at each epoch so we can see how/if it converges.
+\item Assume our only data point is $x=1$
+\end{itemize}
+
+\noindent
+Do this for initialization choices:
+\begin{itemize}
+\item $w_1=-1$.
+\item $w_1=0.2$.
+\item $w_1=0.9$.
+\item $w_1=4$.
+\end{itemize} 
+
+\noindent
+In your report provide the four plots of epoch vs. $J$, superimposing on your plots the final value of $w_1$ and $J$ once 100 epochs has been reached.  In addition, based on your visualization of the objective function in Section \ref{vof}, describe why you think $w_1$ converged to its final place in each case.
+
+\newpage
+\section{Explore Learning Rate Effects}
+Next we're going to look at how your choice of learning rate can affect things.  We'll use the same objective function as the previous sections, namely $J=\frac{1}{4}(x_1 w_1)^4-\frac{4}{3}(x_1 w_1)^3+\frac{3}{2}(x_1 w_1)^2$.\\
+
+\noindent
+For each experiment initialize $w_1=0.2$ and use $x=1$ as your only data point and once again run each experiment for 100 epochs.  \\
+
+\noindent
+The learning rates for the experiments are:
+\begin{itemize}
+\item $\eta=0.001$
+\item $\eta=0.01$
+\item $\eta=1.0$
+\item $\eta=5.0$
+\end{itemize}
+
+\noindent
+And once again, create plots of \emph{epoch} vs $J$ for each experiment and superimpose the final values of $w_1$ and $J$.\\
+
+\noindent
+\emph{NOTE: Due to the potential of overflow, you likely will want to have the evaluation of your $J$ function in a try/except block where you break out of the gradient decent loop if an exception happens.}
+
+\newpage
+\section{Adaptive Learning Rate}
+Finally let's look at using an adaptive learning rate, \'{a} la the Adam algorithm.\\
+
+\noindent
+For this part of your homework assignment we'll once again look to learn the $w_1$ that minimizes $J=\frac{1}{4}(x_1 w_1)^4-\frac{4}{3}(x_1 w_1)^3+\frac{3}{2}(x_1 w_1)^2$ given the data point $x=1$.  Run gradient descent \emph{with ADAM} adaptive learning on this objective function for 100 epochs and produce a graph of epoch vs J.  Ultimately, you are implementing ADAM from scratch here. \\  
+
+\noindent
+Your hyperparameter initializations are:
+\begin{itemize}
+\item $w_1=0.2$
+\item $\eta = 5$
+\item $\rho_1 = 0.9$
+\item $\rho_2 = 0.999$
+\item $\delta=10^{-8}$
+\end{itemize}
+
+\noindent
+In your report provide a plot of epoch vs J.
+
+\newpage
+\section{Multi--Class Classification}
+Finally, in preparation for our next assignment, let's do multi--class classification.  For this we'll use the architecture:
+
+$$Input \rightarrow \textrm{Fully Connected} \rightarrow \textrm{Softmax} \rightarrow \textrm{Output w/ Cross--Entropy Objective Function}$$
+
+\noindent
+Download the MNIST dataset from BBlearn.  Read in the training and testing (validation) data.
+
+\noindent
+We will leave other design and hyperparameter decisions to you, although they should be documented in your report.  You likely might want to take into account the things explored in this assignment (if so you'll likely need to change how some of your modules work, and that's fine!).\\
+
+\noindent
+Train your system using the training data, keeping track of the value of your objective function with regards to the training and validation sets as you go.\\
+
+\noindent
+In your final report provide:
+\begin{itemize}
+\item Your design/hyperparameter decisions.
+\item A graph of epoch vs. $J$ for both training and validation.
+\item Your final training and validation \emph{accuracy}.
+\end{itemize}
+
+\noindent
+\emph{NOTE: You may have some features with zero standard deviation.  To avoid a divide--by--zero situation, I suggest setting those standard deviations one one}
+
+\newpage
+\section*{Submission}
+For your submission, upload to Blackboard a single zip file containing:
+
+\begin{enumerate}
+\item PDF Writeup
+\item Source Code
+\item readme.txt file
+\end{enumerate}
+
+\noindent
+The readme.txt file should contain information on how to run your code to reproduce results for each part of the assignment.\\
+
+\noindent
+The PDF document should contain the following:
+
+\begin{enumerate}
+\item Part 1:
+	\begin{enumerate}
+	\item Your solutions to the theory question
+	\end{enumerate}
+\item Part 2:
+	\begin{enumerate}
+	\item Your plot.
+	\end{enumerate}
+\item Part 3:
+	\begin{enumerate}
+	\item Your four plots of epoch vs. $J$ with the terminal values of $x$ and $J$ superimposed on each.
+	\item A description of why you think $x$ converged to its final place in each case, justified by the visualization of the objective function.
+	\end{enumerate}	
+\item Part 4:
+	\begin{enumerate}
+	\item Your four plots of epoch vs. $J$ with the terminal values of $x$ and $J$ superimposed on each.
+	\end{enumerate}
+\item Part 5:
+	\begin{enumerate}
+	\item Your plot of \emph{epoch} vs $J$.
+	\end{enumerate}
+\item Part 6:
+	\begin{enumerate}
+	\item Any additional design decisions.
+	\item Hyperparameter choices.
+	\item Graph of $J$ vs \emph{epoch} for both training and validation data sets.
+	\item Final training and validation accuracies.
+	\end{enumerate}
+\end{enumerate}
+\end{document}
+
