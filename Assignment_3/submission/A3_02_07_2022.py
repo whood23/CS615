@@ -421,11 +421,12 @@ if __name__ == '__main__':
     run = RunLayers(XTest, YTest, layers, 10000, 0.0001, 'mape')
     epochStorageTest, errorStorageTest = run.allRun()
     # Plot
+    plt.figure(1)
     plot(epochStorageTrain, errorStorageTrain)
     plot(epochStorageTest, errorStorageTest)
     plt.title('Part 4: MAPE Vs Epoch')
     plt.legend(["Training", "Validation"])
-    plt.show()
+    plt.draw()
 
     "RMSE"
     # Call Layers
@@ -442,11 +443,12 @@ if __name__ == '__main__':
     run = RunLayers(XTest, YTest, layers, 10000, 0.0001, 'rmse')
     epochStorageTest, errorStorageTest = run.allRun()
     # Plot
+    plt.figure(2)
     plot(epochStorageTrain, errorStorageTrain)
     plot(epochStorageTest, errorStorageTest)
     plt.title('Part 4: RMSE Vs Epoch')
     plt.legend(["Training", "Validation"])
-    plt.show()
+    plt.draw()
 
     """
     Part 5
@@ -480,8 +482,9 @@ if __name__ == '__main__':
     binaryClassify = (YTest == testClassify)
     print("Validation Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTest, axis=0)) * 100))
     # Plot
+    plt.figure(3)
     plot(epochStorageTrain, errorStorageTrain)
     plot(epochStorageTest, errorStorageTest)
-    plt.title('PArt 5: Log Loss vs Epoch')
+    plt.title('Part 5: Log Loss vs Epoch')
     plt.legend(["Training", "Validation"])
     plt.show()
