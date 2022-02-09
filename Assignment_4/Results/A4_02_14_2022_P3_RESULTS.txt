@@ -1,0 +1,13 @@
+Final Results
+@w=-1
+Final Weight: -6.511398042599653e-17
+Final Objective: 1.2979072796684882e-32
+@w=0.2
+Final Weight: 9.876097286618551e-17
+Final Objective: 2.985835641267988e-32
+@w=0.9
+Final Weight: 2.3772260176107233e-14
+Final Objective: 1.7299602669811068e-27
+@w=4
+Final Weight: 3.0
+Final Objective: -2.25

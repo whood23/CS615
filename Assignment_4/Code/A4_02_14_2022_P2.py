@@ -31,5 +31,5 @@ class VisualObjectiveFunction:
 
 
 if __name__ == '__main__':
-    vof = VisualObjectiveFunction(1,-2,5,0.1)
+    vof = VisualObjectiveFunction(1, -2, 5, 0.1)
     vof.runVOJ()
