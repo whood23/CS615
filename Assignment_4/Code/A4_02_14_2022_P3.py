@@ -2,12 +2,13 @@ from matplotlib import pyplot as plt
 
 
 class ModelInitialEffects:
-    def __init__(self, w1, x1, graphTitle, epochs=100, eta=0.1):
+    def __init__(self, w1, x1, graphTitle, fignum, epochs=100, eta=0.1):
         self.w1 = w1
         self.x1 = x1
         self.epochs = epochs
         self.eta = eta
         self.graphTitle = graphTitle
+        self.fignum = fignum
 
     def updateWeight(self, W, grad):
         newW = W - (self.eta * grad)
@@ -34,12 +35,13 @@ class ModelInitialEffects:
             grad = self.calculateGrad(weight)
             weight = self.updateWeight(weight, grad)
 
+        plt.figure(self.fignum)
         plt.style.use("dark_background")
         plt.plot(E, J)
         plt.ylabel("Objective")
         plt.xlabel("Epoch")
         plt.title(self.graphTitle)
-        plt.show()
+        plt.draw()
 
         return weight, j
 
@@ -48,30 +50,32 @@ if __name__ == '__main__':
     print("Final Results")
     print()
 
-    mie = ModelInitialEffects(-1, 1, "Part 3: @w = -1")
+    mie = ModelInitialEffects(-1, 1, "Part 3: @w = -1", 1)
     weight, j = mie.runMIE()
     print("@w=-1")
     print("Final Weight:", weight)
     print("Final Objective:", j)
     print()
 
-    mie = ModelInitialEffects(0.2, 1, "Part 3: @w = 0.2")
+    mie = ModelInitialEffects(0.2, 1, "Part 3: @w = 0.2", 2)
     weight, j = mie.runMIE()
     print("@w=0.2")
     print("Final Weight:", weight)
     print("Final Objective:", j)
     print()
 
-    mie = ModelInitialEffects(0.9, 1, "Part 3: @w = 0.9")
+    mie = ModelInitialEffects(0.9, 1, "Part 3: @w = 0.9", 3)
     weight, j = mie.runMIE()
     print("@w=0.9")
     print("Final Weight:", weight)
     print("Final Objective:", j)
     print()
 
-    mie = ModelInitialEffects(4, 1, "Part 3: @w = 4")
+    mie = ModelInitialEffects(4, 1, "Part 3: @w = 4", 4)
     weight, j = mie.runMIE()
     print("@w=4")
     print("Final Weight:", weight)
     print("Final Objective:", j)
     print()
+
+    plt.show()
