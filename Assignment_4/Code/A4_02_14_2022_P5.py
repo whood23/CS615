@@ -27,8 +27,7 @@ class GradientDescentAdam:
         return r
 
     def updateWeight(self, w1, s, r, t):
-        if t == 0: t = self.smallCst
-        w1 = w1 - self.globeLr * ((s / (1 - pow(self.ro1, t))) / (math.sqrt(r / (1 - pow(self.ro2, t))) + self.smallCst))
+        w1 = w1 - self.globeLr * ((s / ((1 - pow(self.ro1, t)))) / (math.sqrt(r / (1 - pow(self.ro2, t))) + self.smallCst))
         return w1
 
     def updateObjective(self, W):
@@ -48,7 +47,7 @@ class GradientDescentAdam:
             grad = self.computeGrad(w)
             s = self.update1stMoment(s, grad)
             r = self.update2ndMoment(r, grad)
-            w = self.updateWeight(w, s, r, epoch)
+            w = self.updateWeight(w, s, r, epoch+1)
            
         plt.figure(self.fignum)
         plt.plot(E, J)
