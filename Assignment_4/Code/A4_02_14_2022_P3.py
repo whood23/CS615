@@ -36,7 +36,6 @@ class ModelInitialEffects:
             weight = self.updateWeight(weight, grad)
 
         plt.figure(self.fignum)
-        plt.style.use("dark_background")
         plt.plot(E, J)
         plt.ylabel("Objective")
         plt.xlabel("Epoch")
@@ -50,32 +49,47 @@ if __name__ == '__main__':
     print("Final Results")
     print()
 
-    mie = ModelInitialEffects(-1, 1, "Part 3: @w = -1", 1)
-    weight, j = mie.runMIE()
-    print("@w=-1")
-    print("Final Weight:", weight)
-    print("Final Objective:", j)
-    print()
+    simulations = ["Part 3: @w = -1", "Part 3: @w = 0.2", "Part 3: @w = 0.9", "Part 3: @w = 4"]
+    parametersW1 = [-1, 0.2, 0.9, 4]
+    parametersX1 = [1, 1, 1, 1]
 
-    mie = ModelInitialEffects(0.2, 1, "Part 3: @w = 0.2", 2)
-    weight, j = mie.runMIE()
-    print("@w=0.2")
-    print("Final Weight:", weight)
-    print("Final Objective:", j)
-    print()
+    plt.style.use("dark_background")
 
-    mie = ModelInitialEffects(0.9, 1, "Part 3: @w = 0.9", 3)
-    weight, j = mie.runMIE()
-    print("@w=0.9")
-    print("Final Weight:", weight)
-    print("Final Objective:", j)
-    print()
-
-    mie = ModelInitialEffects(4, 1, "Part 3: @w = 4", 4)
-    weight, j = mie.runMIE()
-    print("@w=4")
-    print("Final Weight:", weight)
-    print("Final Objective:", j)
-    print()
-
+    for i in range(len(simulations)):
+        mie = ModelInitialEffects(parametersW1[i], parametersX1[i], simulations[i], i)
+        weight, j = mie.runMIE()
+        print(simulations[i][7:])
+        print("Final Weight:", weight)
+        print("Final Objective:", j)
+        print()
+        
     plt.show()
+
+    # mie = ModelInitialEffects(-1, 1, "Part 3: @w = -1", 1)
+    # weight, j = mie.runMIE()
+    # print("@w=-1")
+    # print("Final Weight:", weight)
+    # print("Final Objective:", j)
+    # print()
+
+    # mie = ModelInitialEffects(0.2, 1, "Part 3: @w = 0.2", 2)
+    # weight, j = mie.runMIE()
+    # print("@w=0.2")
+    # print("Final Weight:", weight)
+    # print("Final Objective:", j)
+    # print()
+
+    # mie = ModelInitialEffects(0.9, 1, "Part 3: @w = 0.2", 3)
+    # weight, j = mie.runMIE()
+    # print("@w=0.9")
+    # print("Final Weight:", weight)
+    # print("Final Objective:", j)
+    # print()
+
+    # mie = ModelInitialEffects(4, 1, "Part 3: @w = 4", 4)
+    # weight, j = mie.runMIE()
+    # print("@w=4")
+    # print("Final Weight:", weight)
+    # print("Final Objective:", j)
+    # print()
+
