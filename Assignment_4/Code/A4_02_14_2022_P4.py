@@ -35,8 +35,8 @@ class ModelInitialEffects:
             w1 = self.updateWeight(w1, grad)
 
         plt.figure(self.fignum)
-        plt.style.use("dark_background")
         plt.plot(E, J)
+        plt.legend(["Final Weight:"+ " " + str(w1) + "\n"+ "Final Objective:"+ " "+ str(j)])
         plt.ylabel("Objective")
         plt.xlabel("Epoch")
         plt.title(self.graphTitle)
@@ -49,32 +49,70 @@ if __name__ == '__main__':
     print("Final Results")
     print()
 
-    mie = ModelInitialEffects(0.2, 1, "Part 3: @eta = 0.001", 1, 100, 0.001)
-    weight, obj = mie.runMIE()
-    print("@eta=0.001")
-    print("Final Weight:", weight)
-    print("Final Objective:", obj)
-    print()
+    simulations = ["Part 4: @eta = 0.001", "Part 4: @eta = 0.01", "Part 4: @eta = 1.0", "Part 4: @eta = 5.0"]
+    parametersEta = [0.001, 0.01, 1.0, 5.0]
 
-    mie = ModelInitialEffects(0.2, 1, "Part 3: @eta = 0.01", 2, 100, 0.01)
-    weight, obj = mie.runMIE()
-    print("@eta=0.01")
-    print("Final Weight:", weight)
-    print("Final Objective:", obj)
-    print()
+    plt.style.use("dark_background")
 
-    mie = ModelInitialEffects(0.2, 1, "Part 3: @eta = 1.0", 3, 100, 1.0)
-    weight, obj = mie.runMIE()
-    print("@eta=1.0")
-    print("Final Weight:", weight)
-    print("Final Objective:", obj)
-    print()
+    for i in range(len(simulations)):
+        if i < 3:
+            mie = ModelInitialEffects(0.2, 1, simulations[i], i, 100, parametersEta[i])
+            weight, j = mie.runMIE()
 
-    mie = ModelInitialEffects(0.2, 1, "Part 3: @eta = 5.0", 4, 100, 5.0)
-    weight, obj = mie.runMIE()
-    print("@eta=5.0")
-    print("Final Weight:", weight)
-    print("Final Objective:", obj)
-    print()
+        elif i == 3:
+            mie = ModelInitialEffects(0.2, 1, simulations[i], i, 6, parametersEta[i])
+            weight, j = mie.runMIE()
 
+        print(simulations[i][7:])
+        print("Final Weight:", weight)
+        print("Final Objective:", j)
+        print()
+
+    # # For the fourth iteration
+    # mie = ModelInitialEffects(0.2, 1, simulations[3], 3, 100, parametersEta[3])
+    # w1 = 0.2
+    # E = []
+    # J = []
+
+    # for epoch in range(100):
+    #     print(epoch)
+    #     j = mie.calculateObjective(w1)
+    #     J.append(j)
+    #     E.append(epoch)
+    #     grad = mie.calculateGrad(w1)
+    #     w1 = mie.updateWeight(w1, grad)
+
+        
     plt.show()
+
+
+
+    # mie = ModelInitialEffects(0.2, 1, "Part 4: @eta = 0.001", 1, 100, 0.001)
+    # weight, obj = mie.runMIE()
+    # print("@eta=0.001")
+    # print("Final Weight:", weight)
+    # print("Final Objective:", obj)
+    # print()
+
+    # mie = ModelInitialEffects(0.2, 1, "Part 4: @eta = 0.01", 2, 100, 0.01)
+    # weight, obj = mie.runMIE()
+    # print("@eta=0.01")
+    # print("Final Weight:", weight)
+    # print("Final Objective:", obj)
+    # print()
+
+    # mie = ModelInitialEffects(0.2, 1, "Part 4: @eta = 1.0", 3, 100, 1.0)
+    # weight, obj = mie.runMIE()
+    # print("@eta=1.0")
+    # print("Final Weight:", weight)
+    # print("Final Objective:", obj)
+    # print()
+
+    # mie = ModelInitialEffects(0.2, 1, "Part 4: @eta = 5.0", 4, 100, 5.0)
+    # weight, obj = mie.runMIE()
+    # print("@eta=5.0")
+    # print("Final Weight:", weight)
+    # print("Final Objective:", obj)
+    # print()
+
+    # plt.show()

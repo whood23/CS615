@@ -37,6 +37,7 @@ class ModelInitialEffects:
 
         plt.figure(self.fignum)
         plt.plot(E, J)
+        plt.legend(["Final Weight:"+ " " + str(weight) + "\n"+ "Final Objective:"+ " "+ str(j)])
         plt.ylabel("Objective")
         plt.xlabel("Epoch")
         plt.title(self.graphTitle)
@@ -64,32 +65,3 @@ if __name__ == '__main__':
         print()
         
     plt.show()
-
-    # mie = ModelInitialEffects(-1, 1, "Part 3: @w = -1", 1)
-    # weight, j = mie.runMIE()
-    # print("@w=-1")
-    # print("Final Weight:", weight)
-    # print("Final Objective:", j)
-    # print()
-
-    # mie = ModelInitialEffects(0.2, 1, "Part 3: @w = 0.2", 2)
-    # weight, j = mie.runMIE()
-    # print("@w=0.2")
-    # print("Final Weight:", weight)
-    # print("Final Objective:", j)
-    # print()
-
-    # mie = ModelInitialEffects(0.9, 1, "Part 3: @w = 0.2", 3)
-    # weight, j = mie.runMIE()
-    # print("@w=0.9")
-    # print("Final Weight:", weight)
-    # print("Final Objective:", j)
-    # print()
-
-    # mie = ModelInitialEffects(4, 1, "Part 3: @w = 4", 4)
-    # weight, j = mie.runMIE()
-    # print("@w=4")
-    # print("Final Weight:", weight)
-    # print("Final Objective:", j)
-    # print()
-

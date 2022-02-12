@@ -23,13 +23,14 @@ class VisualObjectiveFunction:
             J.append(j)
 
         plt.style.use("dark_background")
-        plt.plot(J, W)
+        plt.plot(W, J)
         plt.ylabel("Weight")
         plt.xlabel("J")
         plt.title("Part 2: Visualizing an Objective Function")
-        plt.show()
+        plt.draw()
 
 
 if __name__ == '__main__':
     vof = VisualObjectiveFunction(1, -2, 5, 0.1)
     vof.runVOJ()
+    plt.show()
