@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
+#from datetime import datetime as dt
+import time as dt
 import math
 
 
@@ -81,6 +83,7 @@ class LinearLayer(Layer):
             gradData = np.zeros((totColumns, totColumns))
             np.fill_diagonal(gradData, dataIn[row])
             tensor = np.concatenate((tensor, gradData[None]), axis=0)
+
 
         return tensor
 
@@ -265,7 +268,7 @@ class FullyConnectedLayerAdam(Layer):
         self.s = self.ro1 * self.s + (1 - self.ro1) * gradIn
 
     def update2ndMoment(self, gradIn):
-        self.r = self.ro2 * self.r + (1 - self.ro2) * np.dot(gradIn, gradIn)
+        self.r = self.ro2 * self.r + (1 - self.ro2) * np.multiply(gradIn, gradIn)
 
     def updateWeights(self, t):
         self.weights = self.weights - self.globeLr * ((self.s / ((1 - pow(self.ro1, t)))) / (math.sqrt(self.r / (1 - pow(self.ro2, t))) + self.smallCst))
@@ -315,15 +318,14 @@ class LogLoss:
 
 class CrossEntropy:
     def eval(self, y, yhat):
-        yhet = yhat.T
-        #j = np.dot(-y, np.log(np.transpose(yhat)))
-        print(yhet.shape)
-        print(y.shape)
-        j = np.matmul(-y, math.log(yhet))
+        #yhat[yhat<=0] = 10e-7
+        #yhet = np.log(yhat.T)
+        j = np.dot(-y, np.log(np.transpose(yhat)))
+        #j = np.matmul(yhet, -y)
         return j
 
     def gradient(self, y, yhat):
-        grad_j = -y / yhat
+        grad_j = -y / (yhat + 10e-7)
         return grad_j
 
     def backward(self, gradIn):
@@ -429,7 +431,6 @@ class RunLayersAdam:
                 self.layers[i].update2ndMoment(grad)
                 self.layers[i].updateWeights(self.counter)
 
-
             grad = newGrad
 
     def mapeRun(self, H):
@@ -526,6 +527,8 @@ class SplitData:
 
 
 if __name__ == '__main__':
+    # start_time = dt.now()
+    start_time = dt.time()
     def plot(xPlotData, yPlotData):
         plt.plot(xPlotData, yPlotData)
         plt.xlabel('Epoch')
@@ -534,16 +537,16 @@ if __name__ == '__main__':
 
 
     data = np.genfromtxt('mnist_train.csv', delimiter=',', skip_header=True)
-    XTrain = data[:, :1]
-    YTrain = data[:, 1:]
+    XTrain = data[:, 1:]
+    YTrain = data[:, :1]
 
     L1 = InputLayer(XTrain)
     L2 = FullyConnectedLayerAdam(XTrain.shape[1], 1)
-    L3 = LinearLayer()
+    L3 = SoftmaxLayer()
     L4 = CrossEntropy()
     layers = [L1, L2, L3, L4]
-    ep = 10
-    print("Number of epochs: {}".format(ep))
+    ep = 10000
+    # print("Number of epochs: {}".format(ep))
     "Training"
     # Run test
     run = RunLayersAdam(XTrain, YTrain, layers, ep)
@@ -552,42 +555,17 @@ if __name__ == '__main__':
     binaryClassify = (YTrain == trainClassify)
     print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis=0)) * 100))
 
-
-    # """
-    # Part 5
-    # """
-    # # Call in data
-    # data = np.genfromtxt('KidCreative.csv', delimiter=',', skip_header=True)
-    # # Create train and testing sets
-    # spl = SplitData(data, 2 / 3, 'begin', 1, 2)
-    # XTrain, XTest, YTrain, YTest = spl.fullSplit()
-    # # Call layers
-    # L1 = InputLayer(XTrain)
-    # L2 = FullyConnectedLayerAdam(XTrain.shape[1], 1)
-    # L3 = LinearLayer()
-    # L4 = CrossEntropy()
-    # layers = [L1, L2, L3, L4]
-    # ep = 10000
-    # print("Number of epochs: {}".format(ep))
-    # "Training"
-    # # Run test
-    # run = RunLayers(XTrain, YTrain, layers, ep, 0.0001)
-    # epochStorageTrain, errorStorageTrain = run.allRun()
-    # trainClassify = run.classify(XTrain)
-    # binaryClassify = (YTrain == trainClassify)
-    # print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis=0)) * 100))
-
-    # "Validation"
-    # # Run Test
-    # run = RunLayers(XTest, YTest, layers, ep, 0.0001)
-    # epochStorageTest, errorStorageTest = run.allRun()
-    # testClassify = run.classify(XTest)
-    # binaryClassify = (YTest == testClassify)
-    # print("Validation Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTest, axis=0)) * 100))
-
-    # Plot
-    plt.figure(3)
-    plot(epochStorageTrain, objStorageTrain)
-    plt.title('Part 5: Log Loss vs Epoch')
-    # plt.legend(["Training", "Validation"])
-    plt.show()
+    print()
+    print("Error Storage")
+    print(errorStorageTrain)
+    print("Epoch Storage")
+    print(epochStorageTrain)
+    print("Objective Storage")
+    print(objStorageTrain)
+    # end_time = dt.now()
+    end_time = dt.time()
+    print("Duration: {} Seconds".format(end_time - start_time))
+    # plt.figure(3)
+    # plt.plot(epochStorageTrain, objStorageTrain)
+    # plt.title('Part 5: Log Loss vs Epoch')
+    # plt.show()
