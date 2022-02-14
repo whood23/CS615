@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
-#from datetime import datetime as dt
-import time as dt
+from datetime import datetime as dt
+# import time as dt
 import math
 
 
@@ -433,25 +433,31 @@ class RunLayersAdam:
 
             grad = newGrad
 
-    def mapeRun(self, H):
-        mape = np.mean(np.absolute((self.Y - H) / self.Y))
+    def mapeRun(self, yhat):
+        mape = np.mean(np.absolute((self.Y - yhat) / self.Y))
         return mape
 
-    def rmseRun(self, H):
-        rmse = math.sqrt(np.matmul(np.transpose(self.Y - H), (self.Y - H)) / np.size(H, axis=0))
+    def rmseRun(self, yhat):
+        rmse = math.sqrt(np.matmul(np.transpose(self.Y - yhat), (self.Y - yhat)) / np.size(yhat, axis=0))
         return rmse
 
-    def objfunRun(self, H):
-        objRun = np.mean(self.layers[-1].eval(self.Y, H))
+    def objfunRun(self, yhat):
+        objRun = np.mean(self.layers[-1].eval(self.Y, yhat))
         return objRun
 
-    def objSelect(self, H):
+    def crossentropyRun(self, yhat): 
+        j = -np.dot(self.Y, np.log(np.transpose(np.argmax(yhat, axis=1).reshape(yhat.shape[0], 1))+10e-7))
+        return j
+
+    def objSelect(self, yhat):
         if self.eval_method == 'none':
-            return self.objfunRun(H)
+            return self.objfunRun(yhat)
         elif self.eval_method == 'mape':
-            return self.mapeRun(H)
+            return self.mapeRun(yhat)
         elif self.eval_method == 'rmse':
-            return self.rmseRun(H)
+            return self.rmseRun(yhat)
+        elif self.eval_method == 'crossE':
+            return self.crossentropyRun(yhat)
 
     def allRun(self):
         endDiff = 1e-10
@@ -464,14 +470,14 @@ class RunLayersAdam:
             # Forward
             H = self.forwardRun(self.X)
             # Store objective
-            objStorage.append(self.layers[-1].eval(self.Y, H))
+            error = self.objSelect(H)
+            print(error)
+            errorStorage.append(error)
+            epochStorage.append(j)
             # Backwards
             self.backRun(self.Y, H)
             self.counter += 1
-            error = self.objSelect(H)
-            errorStorage.append(error)
-            epochStorage.append(j)
-
+            
             if np.absolute(error - prevError) < endDiff:
                 return epochStorage, errorStorage, objStorage
                 break
@@ -527,8 +533,8 @@ class SplitData:
 
 
 if __name__ == '__main__':
-    # start_time = dt.now()
-    start_time = dt.time()
+    start_time = dt.now()
+    # start_time = dt.time()
     def plot(xPlotData, yPlotData):
         plt.plot(xPlotData, yPlotData)
         plt.xlabel('Epoch')
@@ -541,15 +547,15 @@ if __name__ == '__main__':
     YTrain = data[:, :1]
 
     L1 = InputLayer(XTrain)
-    L2 = FullyConnectedLayerAdam(XTrain.shape[1], 1)
+    L2 = FullyConnectedLayerAdam(XTrain.shape[1], 10)
     L3 = SoftmaxLayer()
     L4 = CrossEntropy()
     layers = [L1, L2, L3, L4]
-    ep = 10000
+    ep = 2
     # print("Number of epochs: {}".format(ep))
     "Training"
     # Run test
-    run = RunLayersAdam(XTrain, YTrain, layers, ep)
+    run = RunLayersAdam(XTrain, YTrain, layers, ep, "crossE")
     epochStorageTrain, errorStorageTrain, objStorageTrain = run.allRun()
     trainClassify = run.classify(XTrain)
     binaryClassify = (YTrain == trainClassify)
@@ -560,11 +566,11 @@ if __name__ == '__main__':
     print(errorStorageTrain)
     print("Epoch Storage")
     print(epochStorageTrain)
-    print("Objective Storage")
-    print(objStorageTrain)
-    # end_time = dt.now()
-    end_time = dt.time()
-    print("Duration: {} Seconds".format(end_time - start_time))
+    # print("Objective Storage")
+    # print(objStorageTrain.shape)
+    end_time = dt.now()
+    # end_time = dt.time()
+    print("Duration: {}".format(end_time - start_time))
     # plt.figure(3)
     # plt.plot(epochStorageTrain, objStorageTrain)
     # plt.title('Part 5: Log Loss vs Epoch')
