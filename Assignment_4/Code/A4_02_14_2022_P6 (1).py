@@ -320,6 +320,7 @@ class CrossEntropy:
         print(yhet.shape)
         print(y.shape)
         j = np.matmul(-y, math.log(yhet))
+        #j = np.dot(-y, np.log(np.transpose(yhat)))
         return j
 
     def gradient(self, y, yhat):
@@ -404,6 +405,7 @@ class RunLayers:
         classification[classification >= 0.5] = 1
         return classification
 
+
 class RunLayersAdam:
     def __init__(self, X, Y, layerList, epochs, eval_method='none'):
         self.X = X
@@ -485,6 +487,7 @@ class RunLayersAdam:
         classification[classification >= 0.5] = 1
         return classification
 
+
 class SplitData:
     def __init__(self, data, percent=2 / 3, fsc='norm', fscRangeFrom=0, fscRangeTo=0):
         self.data = data
@@ -541,17 +544,12 @@ if __name__ == '__main__':
     L2 = FullyConnectedLayerAdam(XTrain.shape[1], 1)
     L3 = LinearLayer()
     L4 = CrossEntropy()
+
     layers = [L1, L2, L3, L4]
     ep = 10
-    print("Number of epochs: {}".format(ep))
-    "Training"
-    # Run test
+
     run = RunLayersAdam(XTrain, YTrain, layers, ep)
     epochStorageTrain, errorStorageTrain, objStorageTrain = run.allRun()
-    trainClassify = run.classify(XTrain)
-    binaryClassify = (YTrain == trainClassify)
-    print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis=0)) * 100))
-
 
     # """
     # Part 5
@@ -585,7 +583,6 @@ if __name__ == '__main__':
     # binaryClassify = (YTest == testClassify)
     # print("Validation Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTest, axis=0)) * 100))
 
-    # Plot
     plt.figure(3)
     plot(epochStorageTrain, objStorageTrain)
     plt.title('Part 5: Log Loss vs Epoch')
