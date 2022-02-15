@@ -414,6 +414,7 @@ class RunLayersAdam:
         self.layers = layerList
         self.epochs = epochs
         self.eval_method = eval_method
+        self.batchSize = 2500
 
     def forwardRun(self, X):
         H = X
@@ -445,11 +446,11 @@ class RunLayersAdam:
         objRun = np.mean(self.layers[-1].eval(self.Y, yhat))
         return objRun
 
-    def crossentropyRun(self, yhat): 
-        j = -np.dot(self.Y, np.log(np.transpose(np.argmax(yhat, axis=1).reshape(yhat.shape[0], 1))+10e-7))
-        return j
+    def crossentropyRun(self, yhat, y): 
+        j = -np.dot(y, np.log(np.transpose(np.argmax(yhat, axis=1).reshape(yhat.shape[0], 1))+10e-7))
+        return np.mean(j)
 
-    def objSelect(self, yhat):
+    def objSelect(self, yhat, y):
         if self.eval_method == 'none':
             return self.objfunRun(yhat)
         elif self.eval_method == 'mape':
@@ -457,7 +458,28 @@ class RunLayersAdam:
         elif self.eval_method == 'rmse':
             return self.rmseRun(yhat)
         elif self.eval_method == 'crossE':
-            return self.crossentropyRun(yhat)
+            return self.crossentropyRun(yhat, y)
+
+    def createMinibatch(self, x, y, batchSize):
+        miniBatches = []
+        data = np.hstack((x, y))
+        np.random.shuffle(data)
+        numBatches = data.shape[0] // batchSize
+        i = 0
+
+        for i in range(numBatches + 1):
+            miniBatch = data[i * batchSize:(i + 1) * batchSize, :]
+            XMini = miniBatch[:, :-1]
+            YMini = miniBatch[:, -1].reshape((-1, 1))
+            miniBatches.append((XMini, YMini))
+
+        if data.shape[0] % batchSize != 0:
+            miniBatch = data[i * batchSize:data.shape[0]]
+            XMini = miniBatch[:, :-1]
+            YMini = miniBatch[:, -1].reshape((-1, 1))
+            miniBatches.append((XMini, YMini))
+
+        return miniBatches
 
     def allRun(self):
         endDiff = 1e-10
@@ -467,23 +489,30 @@ class RunLayersAdam:
         prevError = 0
 
         for j in range(self.epochs):
-            # Forward
-            H = self.forwardRun(self.X)
-            # Store objective
-            error = self.objSelect(H)
-            print(error)
+
+            miniBatches = self.createMinibatch(self.X, self.Y, self.batchSize)
+            for mb in miniBatches:
+                XMini, YMini = mb
+                # Forward
+                H = self.forwardRun(XMini)
+                # Store objective
+
+                # Backwards
+                self.backRun(YMini, H)
+                self.counter += 1
+                
+            error = self.objSelect(H, YMini)
             errorStorage.append(error)
             epochStorage.append(j)
-            # Backwards
-            self.backRun(self.Y, H)
-            self.counter += 1
-            
+            print(j)
+
             if np.absolute(error - prevError) < endDiff:
                 return epochStorage, errorStorage, objStorage
                 break
 
             prevError = error
 
+            
         return epochStorage, errorStorage, objStorage
 
     def classify(self, X):
@@ -543,6 +572,8 @@ if __name__ == '__main__':
 
 
     data = np.genfromtxt('mnist_train.csv', delimiter=',', skip_header=True)
+    split_factor = 0.
+    split = int(split_factor * data.shape[0])
     XTrain = data[:, 1:]
     YTrain = data[:, :1]
 
@@ -551,7 +582,7 @@ if __name__ == '__main__':
     L3 = SoftmaxLayer()
     L4 = CrossEntropy()
     layers = [L1, L2, L3, L4]
-    ep = 2
+    ep = 1000
     # print("Number of epochs: {}".format(ep))
     "Training"
     # Run test
@@ -559,7 +590,7 @@ if __name__ == '__main__':
     epochStorageTrain, errorStorageTrain, objStorageTrain = run.allRun()
     trainClassify = run.classify(XTrain)
     binaryClassify = (YTrain == trainClassify)
-    print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis=0)) * 100))
+    
 
     print()
     print("Error Storage")
@@ -568,6 +599,7 @@ if __name__ == '__main__':
     print(epochStorageTrain)
     # print("Objective Storage")
     # print(objStorageTrain.shape)
+    print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis=0)) * 100))
     end_time = dt.now()
     # end_time = dt.time()
     print("Duration: {}".format(end_time - start_time))
