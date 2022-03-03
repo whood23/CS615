@@ -151,8 +151,6 @@ class SoftmaxLayer(Layer):
         sm = np.array([np.sum(tmp, axis=1)]).T
         sm = tmp/sm
         self.setPrevOut(sm)
-        #soft_data = np.exp(dataIn) / np.sum(np.exp(dataIn))
-        #self.setPrevOut(soft_data)
         return sm
 
     def gradient(self):
@@ -365,47 +363,6 @@ class RunLayers:
         classification[classification >= 0.5] = 1
         return classification
 
-
-class SplitData:
-    def __init__(self, data, percent=2 / 3, fsc='norm', fscRangeFrom=0, fscRangeTo=0):
-        self.data = data
-        self.percent = percent
-        np.random.seed(0)
-        np.random.shuffle(self.data)
-        self.fsc = fsc
-        self.fscRangeFrom = fscRangeFrom
-        self.fscRangeTo = fscRangeTo
-
-    def firstSplit(self):
-        totRows = np.size(self.data, axis=0)
-        train, test = self.data[:round(totRows * self.percent), :], self.data[round(totRows * self.percent):, :]
-        return train, test
-
-    def finalSplitCriteria(self, splitData):
-        if self.fsc == 'norm':
-            X = splitData[:, :-1]
-            Y = splitData[:, -1:]
-            return X, Y
-        elif self.fsc == 'begin':
-            X = splitData[:, self.fscRangeTo:]
-            Y = splitData[:, self.fscRangeFrom:self.fscRangeTo]
-            return X, Y
-        elif self.fsc == 'end':
-            X = splitData[:, :self.fscRangeTo]
-            Y = splitData[:, self.fscRangeTo:self.fscRangeFrom]
-            return X, Y
-
-    def finalSplit(self, train, test):
-        XTr, YTr = self.finalSplitCriteria(train)
-        XTe, YTe = self.finalSplitCriteria(test)
-        return XTr, XTe, YTr, YTe
-
-    def fullSplit(self):
-        train, test = self.firstSplit()
-        XTr, XTe, YTr, YTe = self.finalSplit(train, test)
-        return XTr, XTe, YTr, YTe
-
-
 if __name__ == '__main__':
     start_time = dt.now()
     # start_time = dt.time()
@@ -423,7 +380,7 @@ if __name__ == '__main__':
 
     L1 = InputLayer(XTrain)
     L2 = FullyConnectedLayer(XTrain.shape[1], 10)
-    L3 = SoftmaxLayer()
+    L3 = SigmoidLayer()
     L4 = LogLoss()
     layers = [L1, L2, L3, L4]
     ep = 1000
@@ -437,6 +394,10 @@ if __name__ == '__main__':
     
 
     print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis=0)) * 100))
+    
     end_time = dt.now()
     print("Duration: {}".format(end_time - start_time))
+    plt.figure(3)
+    plt.plot(epochStorageTrain, errorStorageTrain)
+    plt.show()
  

@@ -146,9 +146,14 @@ class SoftmaxLayer(Layer):
 
     def forward(self, dataIn):
         self.setPrevIn(dataIn)
-        soft_data = np.exp(dataIn) / np.sum(np.exp(dataIn))
-        self.setPrevOut(soft_data)
-        return soft_data
+        m = np.array([np.max(dataIn, axis=1)]).T
+        tmp = np.exp(dataIn - m)
+        sm = np.array([np.sum(tmp, axis=1)]).T
+        sm = tmp/sm
+        self.setPrevOut(sm)
+        #soft_data = np.exp(dataIn) / np.sum(np.exp(dataIn))
+        #self.setPrevOut(soft_data)
+        return sm
 
     def gradient(self):
         dataIn = self.getPrevOut()
@@ -244,8 +249,10 @@ class FullyConnectedLayerAdam(Layer):
         self.sizeIn = sizeIn
         self.sizeOut = sizeOut
         self.globeLr = 5
-        self.s = 0
-        self.r = 0
+        self.sW = 0
+        self.rW = 0
+        self.sb = 0
+        self.rb = 0
         self.ro1 = 0.9
         self.ro2 = 0.999
         self.smallCst = 1e-8
@@ -264,20 +271,29 @@ class FullyConnectedLayerAdam(Layer):
     def setBias(self, bias):
         self.bias = bias
 
+    def updateWeights(self, gradIn, epoch):
+        self.update1stMoment(gradIn)
+        self.update2ndMoment(gradIn)
+        self.useMovements(epoch)
+
     def update1stMoment(self, gradIn):
-        self.s = self.ro1 * self.s + (1 - self.ro1) * gradIn
+        self.sW = self.ro1 * self.sW + (1 - self.ro1) * gradIn
+        self.rW = self.ro2 * self.rW + (1 - self.ro2) * np.multiply(gradIn, gradIn)
+
 
     def update2ndMoment(self, gradIn):
-        self.r = self.ro2 * self.r + (1 - self.ro2) * np.multiply(gradIn, gradIn)
+        self.sb = self.ro1 * self.sb + (1 - self.ro1) * gradIn
+        self.rb = self.ro2 * self.rb + (1 - self.ro2) * np.multiply(gradIn, gradIn)
 
-    def updateWeights(self, t):
-        self.weights = self.weights - self.globeLr * ((self.s / ((1 - pow(self.ro1, t)))) / (math.sqrt(self.r / (1 - pow(self.ro2, t))) + self.smallCst))
+    def useMovements(self, t):
+        self.weights = self.weights - self.globeLr * ((self.sW / ((1 - pow(self.ro1, t)))) / (math.sqrt(self.rW / (1 - pow(self.ro2, t))) + self.smallCst))
+        self.bias = self.bias - self.globeLr * ((self.sb / ((1 - pow(self.ro1, t)))) / (math.sqrt(self.rb / (1 - pow(self.ro2, t))) + self.smallCst))
 
     def forward(self, dataIn):
         self.setPrevIn(dataIn)
-        newSet = np.matmul(dataIn, self.weights) + self.bias
-        self.setPrevOut(newSet)
-        return newSet
+        FullyConnected_forward = np.matmul(dataIn, self.weights) + self.bias
+        self.setPrevOut(FullyConnected_forward)
+        return FullyConnected_forward
 
     def gradient(self):
         weights = self.getWeights()
@@ -318,11 +334,11 @@ class LogLoss:
 
 class CrossEntropy:
     def eval(self, y, yhat):
-        #yhat[yhat<=0] = 10e-7
-        #yhet = np.log(yhat.T)
-        j = np.dot(-y, np.log(np.transpose(yhat)))
-        #j = np.matmul(yhet, -y)
-        return j
+        eps = 1e-07
+        j = y * np.log(yhat + eps)
+        j[y==0]=0
+        val = -np.mean(j)
+        return val
 
     def gradient(self, y, yhat):
         grad_j = -y / (yhat + 10e-7)
@@ -406,6 +422,7 @@ class RunLayers:
         classification[classification >= 0.5] = 1
         return classification
 
+
 class RunLayersAdam:
     def __init__(self, X, Y, layerList, epochs, eval_method='none'):
         self.X = X
@@ -428,9 +445,7 @@ class RunLayersAdam:
             newGrad = self.layers[i].backward(grad)
 
             if isinstance(self.layers[i], FullyConnectedLayer):
-                self.layers[i].update1stMoment(grad)
-                self.layers[i].update2ndMoment(grad)
-                self.layers[i].updateWeights(self.counter)
+                self.layers[i].updateWeights(grad, self.counter)
 
             grad = newGrad
 
@@ -520,45 +535,6 @@ class RunLayersAdam:
         classification[classification < 0.5] = 0
         classification[classification >= 0.5] = 1
         return classification
-
-class SplitData:
-    def __init__(self, data, percent=2 / 3, fsc='norm', fscRangeFrom=0, fscRangeTo=0):
-        self.data = data
-        self.percent = percent
-        np.random.seed(0)
-        np.random.shuffle(self.data)
-        self.fsc = fsc
-        self.fscRangeFrom = fscRangeFrom
-        self.fscRangeTo = fscRangeTo
-
-    def firstSplit(self):
-        totRows = np.size(self.data, axis=0)
-        train, test = self.data[:round(totRows * self.percent), :], self.data[round(totRows * self.percent):, :]
-        return train, test
-
-    def finalSplitCriteria(self, splitData):
-        if self.fsc == 'norm':
-            X = splitData[:, :-1]
-            Y = splitData[:, -1:]
-            return X, Y
-        elif self.fsc == 'begin':
-            X = splitData[:, self.fscRangeTo:]
-            Y = splitData[:, self.fscRangeFrom:self.fscRangeTo]
-            return X, Y
-        elif self.fsc == 'end':
-            X = splitData[:, :self.fscRangeTo]
-            Y = splitData[:, self.fscRangeTo:self.fscRangeFrom]
-            return X, Y
-
-    def finalSplit(self, train, test):
-        XTr, YTr = self.finalSplitCriteria(train)
-        XTe, YTe = self.finalSplitCriteria(test)
-        return XTr, XTe, YTr, YTe
-
-    def fullSplit(self):
-        train, test = self.firstSplit()
-        XTr, XTe, YTr, YTe = self.finalSplit(train, test)
-        return XTr, XTe, YTr, YTe
 
 
 if __name__ == '__main__':
