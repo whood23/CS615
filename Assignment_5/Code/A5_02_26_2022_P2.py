@@ -146,14 +146,9 @@ class SoftmaxLayer(Layer):
 
     def forward(self, dataIn):
         self.setPrevIn(dataIn)
-        m = np.array([np.max(dataIn, axis=1)]).T
-        tmp = np.exp(dataIn - m)
-        sm = np.array([np.sum(tmp, axis=1)]).T
-        sm = tmp/sm
-        self.setPrevOut(sm)
-        #soft_data = np.exp(dataIn) / np.sum(np.exp(dataIn))
-        #self.setPrevOut(soft_data)
-        return sm
+        soft_data = np.exp(dataIn) / np.sum(np.exp(dataIn))
+        self.setPrevOut(soft_data)
+        return soft_data
 
     def gradient(self):
         dataIn = self.getPrevOut()
@@ -249,10 +244,8 @@ class FullyConnectedLayerAdam(Layer):
         self.sizeIn = sizeIn
         self.sizeOut = sizeOut
         self.globeLr = 5
-        self.sW = 0
-        self.rW = 0
-        self.sb = 0
-        self.rb = 0
+        self.s = 0
+        self.r = 0
         self.ro1 = 0.9
         self.ro2 = 0.999
         self.smallCst = 1e-8
@@ -271,29 +264,20 @@ class FullyConnectedLayerAdam(Layer):
     def setBias(self, bias):
         self.bias = bias
 
-    def updateWeights(self, gradIn, epoch):
-        self.update1stMoment(gradIn)
-        self.update2ndMoment(gradIn)
-        self.useMovements(epoch)
-
     def update1stMoment(self, gradIn):
-        self.sW = self.ro1 * self.sW + (1 - self.ro1) * gradIn
-        self.rW = self.ro2 * self.rW + (1 - self.ro2) * np.multiply(gradIn, gradIn)
-
+        self.s = self.ro1 * self.s + (1 - self.ro1) * gradIn
 
     def update2ndMoment(self, gradIn):
-        self.sb = self.ro1 * self.sb + (1 - self.ro1) * gradIn
-        self.rb = self.ro2 * self.rb + (1 - self.ro2) * np.multiply(gradIn, gradIn)
+        self.r = self.ro2 * self.r + (1 - self.ro2) * np.multiply(gradIn, gradIn)
 
-    def useMovements(self, t):
-        self.weights = self.weights - self.globeLr * ((self.sW / ((1 - pow(self.ro1, t)))) / (math.sqrt(self.rW / (1 - pow(self.ro2, t))) + self.smallCst))
-        self.bias = self.bias - self.globeLr * ((self.sb / ((1 - pow(self.ro1, t)))) / (math.sqrt(self.rb / (1 - pow(self.ro2, t))) + self.smallCst))
+    def updateWeights(self, t):
+        self.weights = self.weights - self.globeLr * ((self.s / ((1 - pow(self.ro1, t)))) / (math.sqrt(self.r / (1 - pow(self.ro2, t))) + self.smallCst))
 
     def forward(self, dataIn):
         self.setPrevIn(dataIn)
-        FullyConnected_forward = np.matmul(dataIn, self.weights) + self.bias
-        self.setPrevOut(FullyConnected_forward)
-        return FullyConnected_forward
+        newSet = np.matmul(dataIn, self.weights) + self.bias
+        self.setPrevOut(newSet)
+        return newSet
 
     def gradient(self):
         weights = self.getWeights()
@@ -334,11 +318,11 @@ class LogLoss:
 
 class CrossEntropy:
     def eval(self, y, yhat):
-        eps = 1e-07
-        j = y * np.log(yhat + eps)
-        j[y==0]=0
-        val = -np.mean(j)
-        return val
+        #yhat[yhat<=0] = 10e-7
+        #yhet = np.log(yhat.T)
+        j = np.dot(-y, np.log(np.transpose(yhat)))
+        #j = np.matmul(yhet, -y)
+        return j
 
     def gradient(self, y, yhat):
         grad_j = -y / (yhat + 10e-7)
@@ -422,11 +406,11 @@ class RunLayers:
         classification[classification >= 0.5] = 1
         return classification
 
-
 class RunLayersAdam:
     def __init__(self, X, Y, layerList, epochs, eval_method='none'):
         self.X = X
         self.Y = Y
+        self.counter = 1
         self.layers = layerList
         self.epochs = epochs
         self.eval_method = eval_method
@@ -438,35 +422,43 @@ class RunLayersAdam:
             H = self.layers[i].forward(H)
         return H
 
-    def backRun(self, Y, H, j):
+    def backRun(self, Y, H):
         grad = self.layers[-1].gradient(Y, H)
         for i in range(len(self.layers) - 2, 0, -1):
             newGrad = self.layers[i].backward(grad)
 
             if isinstance(self.layers[i], FullyConnectedLayer):
-                self.layers[i].updateWeights(grad, j)
+                self.layers[i].update1stMoment(grad)
+                self.layers[i].update2ndMoment(grad)
+                self.layers[i].updateWeights(self.counter)
 
             grad = newGrad
 
-    def mapeRun(self, H):
-        mape = np.mean(np.absolute((self.Y - H) / self.Y))
+    def mapeRun(self, yhat):
+        mape = np.mean(np.absolute((self.Y - yhat) / self.Y))
         return mape
 
-    def rmseRun(self, H):
-        rmse = math.sqrt(np.matmul(np.transpose(self.Y - H), (self.Y - H)) / np.size(H, axis=0))
+    def rmseRun(self, yhat):
+        rmse = math.sqrt(np.matmul(np.transpose(self.Y - yhat), (self.Y - yhat)) / np.size(yhat, axis=0))
         return rmse
 
-    def objfunRun(self, H):
-        objRun = np.mean(self.layers[-1].eval(self.Y, H))
+    def objfunRun(self, yhat):
+        objRun = np.mean(self.layers[-1].eval(self.Y, yhat))
         return objRun
 
-    def objSelect(self, H):
+    def crossentropyRun(self, yhat, y): 
+        j = -np.dot(y, np.log(np.transpose(np.argmax(yhat, axis=1).reshape(yhat.shape[0], 1))+10e-7))
+        return np.mean(j)
+
+    def objSelect(self, yhat, y):
         if self.eval_method == 'none':
-            return self.objfunRun(H)
+            return self.objfunRun(yhat)
         elif self.eval_method == 'mape':
-            return self.mapeRun(H)
+            return self.mapeRun(yhat)
         elif self.eval_method == 'rmse':
-            return self.rmseRun(H)
+            return self.rmseRun(yhat)
+        elif self.eval_method == 'crossE':
+            return self.crossentropyRun(yhat, y)
 
     def createMinibatch(self, x, y, batchSize):
         miniBatches = []
@@ -498,20 +490,21 @@ class RunLayersAdam:
 
         for j in range(self.epochs):
 
-            # Forward
-            H = self.forwardRun(self.X)
-            # Backwards
-            self.backRun(self.Y, H, j)
-            error = self.objSelect(H)
+            miniBatches = self.createMinibatch(self.X, self.Y, self.batchSize)
+            for mb in miniBatches:
+                XMini, YMini = mb
+                # Forward
+                H = self.forwardRun(XMini)
+                # Store objective
+
+                # Backwards
+                self.backRun(YMini, H)
+                self.counter += 1
+                
+            error = self.objSelect(H, YMini)
             errorStorage.append(error)
             epochStorage.append(j)
-
-            print(error)
-            print(prevError)
-
-            if np.absolute(error - prevError) < endDiff:
-                return epochStorage, errorStorage
-                break
+            print(j)
 
             if np.absolute(error - prevError) < endDiff:
                 return epochStorage, errorStorage, objStorage
@@ -528,27 +521,67 @@ class RunLayersAdam:
         classification[classification >= 0.5] = 1
         return classification
 
+class SplitData:
+    def __init__(self, data, percent=2 / 3, fsc='norm', fscRangeFrom=0, fscRangeTo=0):
+        self.data = data
+        self.percent = percent
+        np.random.seed(0)
+        np.random.shuffle(self.data)
+        self.fsc = fsc
+        self.fscRangeFrom = fscRangeFrom
+        self.fscRangeTo = fscRangeTo
+
+    def firstSplit(self):
+        totRows = np.size(self.data, axis=0)
+        train, test = self.data[:round(totRows * self.percent), :], self.data[round(totRows * self.percent):, :]
+        return train, test
+
+    def finalSplitCriteria(self, splitData):
+        if self.fsc == 'norm':
+            X = splitData[:, :-1]
+            Y = splitData[:, -1:]
+            return X, Y
+        elif self.fsc == 'begin':
+            X = splitData[:, self.fscRangeTo:]
+            Y = splitData[:, self.fscRangeFrom:self.fscRangeTo]
+            return X, Y
+        elif self.fsc == 'end':
+            X = splitData[:, :self.fscRangeTo]
+            Y = splitData[:, self.fscRangeTo:self.fscRangeFrom]
+            return X, Y
+
+    def finalSplit(self, train, test):
+        XTr, YTr = self.finalSplitCriteria(train)
+        XTe, YTe = self.finalSplitCriteria(test)
+        return XTr, XTe, YTr, YTe
+
+    def fullSplit(self):
+        train, test = self.firstSplit()
+        XTr, XTe, YTr, YTe = self.finalSplit(train, test)
+        return XTr, XTe, YTr, YTe
+
 
 if __name__ == '__main__':
     start_time = dt.now()
     # start_time = dt.time()
 
-
-    data = np.genfromtxt('mnist_valid_10.csv', delimiter=',')
+    data = np.genfromtxt('mnist_train.csv', delimiter=',', skip_header=True)
+    split_factor = 0.
+    split = int(split_factor * data.shape[0])
     XTrain = data[:, 1:]
     YTrain = data[:, :1]
 
     L1 = InputLayer(XTrain)
-    L2 = FullyConnectedLayerAdam(XTrain.shape[1], 1)
-    L3 = SoftmaxLayer()
-    L4 = CrossEntropy()
+    L2 = FullyConnectedLayerAdam(XTrain.shape[1], 10)
+    L3 = SigmoidLayer()
+    L4 = LogLoss()
     layers = [L1, L2, L3, L4]
     ep = 1000
     # print("Number of epochs: {}".format(ep))
     "Training"
     # Run test
-    run = RunLayersAdam(XTrain, YTrain, layers, ep)
-    epochStorageTrain, errorStorageTrain = run.allRun()
+    run = RunLayersAdam(XTrain, YTrain, layers, ep, "crossE")
+    epochStorageTrain, errorStorageTrain, objStorageTrain = run.allRun()
     trainClassify = run.classify(XTrain)
     binaryClassify = (YTrain == trainClassify)
     
@@ -558,13 +591,6 @@ if __name__ == '__main__':
     print(errorStorageTrain)
     print("Epoch Storage")
     print(epochStorageTrain)
-    # print("Objective Storage")
-    # print(objStorageTrain.shape)
     print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis=0)) * 100))
     end_time = dt.now()
-    # end_time = dt.time()
     print("Duration: {}".format(end_time - start_time))
-    # plt.figure(3)
-    # plt.plot(epochStorageTrain, objStorageTrain)
-    # plt.title('Part 5: Log Loss vs Epoch')
-    # plt.show()

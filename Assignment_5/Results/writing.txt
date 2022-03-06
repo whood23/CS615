@@ -1,0 +1,17 @@
+P2
+Training Accuracy: 91.69%
+Testing Accuracy: 82.28%
+
+P3
+1:
+Training Accuracy: 99.50%
+Testing Accuracy: 90.29%
+Total Duration: 5:39:24.111252
+2:
+Training Accuracy: 100.00%
+Testing Accuracy: 90.49%
+Total Duration: 4:10:38.774220
+3:
+Training Accuracy: 81.68%
+Testing Accuracy: 74.17%
+Total Duration: 1:48:29.925604

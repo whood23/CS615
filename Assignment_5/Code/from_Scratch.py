@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime as dt
+import OneHotEncoder as ohe
 # import time as dt
 import math
 
@@ -44,7 +45,7 @@ class InputLayer(Layer):
     def __init__(self, dataIn):
         self.dataIn = dataIn
         self.mean_data = np.mean(dataIn, axis=0)
-        self.std_data = np.std(dataIn, axis=0)
+        self.std_data = np.std(dataIn, axis=0, ddof=1)
         self.std_data[self.std_data == 0] = 1
 
     def forward(self, dataIn):
@@ -60,6 +61,8 @@ class InputLayer(Layer):
         pass
 
 
+
+# Objective Functions
 class LinearLayer(Layer):
     def __init__(self):
         super().__init__()
@@ -83,7 +86,6 @@ class LinearLayer(Layer):
             gradData = np.zeros((totColumns, totColumns))
             np.fill_diagonal(gradData, dataIn[row])
             tensor = np.concatenate((tensor, gradData[None]), axis=0)
-
 
         return tensor
 
@@ -200,7 +202,9 @@ class TanhLayer(Layer):
         return tensor
 
 
-class FullyConnectedLayer(Layer):
+# Fully Connected Without Adam
+class FullyConnected2(Layer):
+
     def __init__(self, sizeIn, sizeOut):
         self.sizeIn = sizeIn
         self.sizeOut = sizeOut
@@ -241,7 +245,9 @@ class FullyConnectedLayer(Layer):
         grad = np.matmul(gradIn, sg)
         return grad
 
-class FullyConnectedADAM(Layer):
+
+# Fully Connected with adam
+class FullyConnected(Layer):
 
     def __init__(self, sizein, sizeout, useBias=1):
         super().__init__()
@@ -280,7 +286,7 @@ class FullyConnectedADAM(Layer):
         return gradIn @ self._FullyConnected__weights.T
 
     def updateWeights(self, gradIn, eta, p1=0.9, p2=0.999, rho=-14, epoch=-1):
-        reg = 1
+        reg = 0
         pi = self.getPrevIn()
         po = self.getPrevOut()
         dJdW = pi.T @ gradIn
@@ -301,6 +307,9 @@ class FullyConnectedADAM(Layer):
     def gradient(self):
         return np.tile(self._FullyConnected__weights.T, (self.getPrevIn().shape[0], 1, 1))
 
+
+
+# Evaluation methods
 class LeastSquares:
     def eval(self, y, yhat):
         j = (y - yhat) ** 2
@@ -343,114 +352,4 @@ class CrossEntropy:
         pass
 
 
-class RunLayers:
-    def __init__(self, X, Y, layerList, epochs, eta, eval_method='none'):
-        self.X = X
-        self.Y = Y
-        self.layers = layerList
-        self.epochs = epochs
-        self.eta = eta
-        self.eval_method = eval_method
 
-    def forwardRun(self, X):
-        H = X
-        for i in range(len(self.layers) - 1):
-            H = self.layers[i].forward(H)
-        return H
-
-    def backRun(self, Y, H, time):
-        grad = self.layers[-1].gradient(Y, H)
-        for i in range(len(self.layers) - 2, 0, -1):
-            newGrad = self.layers[i].backward(grad)
-
-            if isinstance(self.layers[i], FullyConnectedLayer):
-                self.layers[i].updateWeights(grad, self.eta)
-            
-            if isinstance(self.layers[i], FullyConnectedADAM):
-                self.layers[i].updateWeights(grad, 5, p1=0.9, p2=0.999, rho=-14, epoch= time + 1)
-
-            grad = newGrad
-
-    def mapeRun(self, H):
-        mape = np.mean(np.absolute((self.Y - H) / self.Y))
-        return mape
-
-    def rmseRun(self, H):
-        rmse = math.sqrt(np.matmul(np.transpose(self.Y - H), (self.Y - H)) / np.size(H, axis=0))
-        return rmse
-
-    def objfunRun(self, H):
-        objRun = np.mean(self.layers[-1].eval(self.Y, H))
-        print(objRun)
-        return objRun
-
-    def objSelect(self, H):
-        if self.eval_method == 'none':
-            return self.objfunRun(H)
-        elif self.eval_method == 'mape':
-            return self.mapeRun(H)
-        elif self.eval_method == 'rmse':
-            return self.rmseRun(H)
-
-    def allRun(self):
-        endDiff = 1e-10
-        epochStorage = []
-        errorStorage = []
-
-        for j in range(self.epochs):
-            # Forward
-            H = self.forwardRun(self.X)
-            # Backwards
-            self.backRun(self.Y, H, j)
-            error = self.objSelect(H)
-            #print(error)
-            errorStorage.append(error)
-            # epochStorage.append(j)
-
-            if j == 0:
-                continue
-
-            if np.absolute(error - errorStorage[j-1]) < endDiff:
-                break
-
-        return epochStorage, errorStorage
-
-    def classify(self, X):
-        classification = self.forwardRun(X)
-        classification[classification < 0.5] = 0
-        classification[classification >= 0.5] = 1
-        return np.argmax(classification, axis=1).reshape(classification.shape[0], 1)
-
-if __name__ == '__main__':
-    start_time = dt.now()
-    # start_time = dt.time()
-
-    data = np.genfromtxt('mnist_train_100.csv', delimiter=',', skip_header=True)
-    np.random.shuffle(data)
-    
-    XTrain = data[:, 1:]
-    YTrain = data[:, :1]
-
-
-    L1 = InputLayer(XTrain) 
-    L2 = FullyConnectedADAM(XTrain.shape[1], 10)
-    L3 = SigmoidLayer()
-    L4 = LogLoss()
-    layers = [L1, L2, L3, L4]
-    ep = 10
-    # print("Number of epochs: {}".format(ep))
-    "Training"
-    # Run test
-    run = RunLayers(XTrain, YTrain, layers, ep, 0.5)
-    epochStorageTrain, errorStorageTrain = run.allRun()
-    trainClassify = run.classify(XTrain)
-    binaryClassify = (YTrain == trainClassify)
-
-    print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis=0)) * 100))
-    
-    end_time = dt.now()
-    print("Duration: {}".format(end_time - start_time))
-    plt.figure(3)
-    plt.plot(epochStorageTrain, errorStorageTrain)
-    plt.show()
- 

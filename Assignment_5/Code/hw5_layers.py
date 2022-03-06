@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime as dt
+import OneHotEncoder as ohe
 # import time as dt
 import math
 
@@ -44,7 +45,7 @@ class InputLayer(Layer):
     def __init__(self, dataIn):
         self.dataIn = dataIn
         self.mean_data = np.mean(dataIn, axis=0)
-        self.std_data = np.std(dataIn, axis=0)
+        self.std_data = np.std(dataIn, axis=0, ddof=1)
         self.std_data[self.std_data == 0] = 1
 
     def forward(self, dataIn):
@@ -60,6 +61,8 @@ class InputLayer(Layer):
         pass
 
 
+
+# Objective Functions
 class LinearLayer(Layer):
     def __init__(self):
         super().__init__()
@@ -83,7 +86,6 @@ class LinearLayer(Layer):
             gradData = np.zeros((totColumns, totColumns))
             np.fill_diagonal(gradData, dataIn[row])
             tensor = np.concatenate((tensor, gradData[None]), axis=0)
-
 
         return tensor
 
@@ -200,12 +202,22 @@ class TanhLayer(Layer):
         return tensor
 
 
-class FullyConnectedLayer(Layer):
+# Fully Connected
+class FullyConnected(Layer):
+
     def __init__(self, sizeIn, sizeOut):
+        # Basic Parameters
         self.sizeIn = sizeIn
         self.sizeOut = sizeOut
         self.weights = np.random.uniform(-0.0001, 0.0001, size=(sizeIn, sizeOut))
         self.bias = np.random.uniform(-0.0001, 0.0001, size=(1, sizeOut))
+        # Adam Parameters
+        self.decayRate1 = 0.9
+        self.decayRate2 = 0.999
+        self.adam_sweight = 0
+        self.adam_sbias = 0
+        self.adam_rweight = 0
+        self.adam_rbias = 0
 
     def getWeights(self):
         return self.weights
@@ -219,11 +231,46 @@ class FullyConnectedLayer(Layer):
     def setBias(self, bias):
         self.bias = bias
 
+    def momentum(self, s, gradIn):
+        newS = (self.decayRate1 * s) + (1 - self.decayRate1) * gradIn
+        return newS
+
+    def RMSProp(self, r, gradIn):
+        newR = (self.decayRate2 * r) + (1 - self.decayRate2) * (gradIn * gradIn)
+        return newR
+
     def updateWeights(self, gradIn, eta=0.0001):
         dJdb = np.sum(gradIn, axis=0) / gradIn.shape[0]
         dJdw = (np.matmul(self.getPrevIn().T, gradIn) / gradIn.shape[0])
         self.bias = self.bias - eta * dJdb
         self.weights = self.weights - (eta * dJdw)
+
+    # Uses Adam
+    def updateWeights2(self, gradIn, epochnum, learningRate = 0.001):
+        stabilityCst = 1e-8
+
+        # To ensure correct sizes
+        dJdb = np.sum(gradIn, axis=0) / gradIn.shape[0]
+        dJdw = (np.matmul(self.getPrevIn().T, gradIn) / gradIn.shape[0])
+
+        # Update accumulators
+        self.adam_sweight = self.momentum(self.adam_sweight, dJdw)
+        self.adam_sbias = self.momentum(self.adam_sbias, dJdb)
+        self.adam_rweight = self.RMSProp(self.adam_rweight, dJdw)
+        self.adam_rbias = self.RMSProp(self.adam_rbias, dJdb)
+
+        # Update Weight and Bias
+        ## Weight
+        weightTop = self.adam_sweight / (1 - self.decayRate1**(epochnum+1))
+        weightBot = np.sqrt(self.adam_rweight / (1 - self.decayRate2**(epochnum+1))) + stabilityCst
+        ## Update Weight
+        self.weights = self.weights - learningRate * (weightTop / weightBot)
+
+        ## Bias
+        biasTop = self.adam_sbias / (1 - self.decayRate1**(epochnum+1))
+        biasBot = np.sqrt(self.adam_rbias / (1 - self.decayRate2**(epochnum+1))) + stabilityCst
+        ## Update Bias
+        self.bias = self.bias - learningRate * biasTop / biasBot
 
     def forward(self, dataIn):
         self.setPrevIn(dataIn)
@@ -241,66 +288,8 @@ class FullyConnectedLayer(Layer):
         grad = np.matmul(gradIn, sg)
         return grad
 
-class FullyConnectedADAM(Layer):
 
-    def __init__(self, sizein, sizeout, useBias=1):
-        super().__init__()
-        self._FullyConnected__weights = 0.0001 * (np.random.rand(sizein, sizeout) - 0.5)
-        self._FullyConnected__biases = 0.0001 * (np.random.rand(1, sizeout) - 0.5)
-        self._FullyConnected__sW = 0
-        self._FullyConnected__rW = 0
-        self._FullyConnected__sb = 0
-        self._FullyConnected__rb = 0
-        self._FullyConnected__useBias = useBias
-
-        
-
-    def setWeights(self, weights):
-        self._FullyConnected__weights = weights
-
-    def getWeights(self):
-        return self._FullyConnected__weights
-
-    def setBias(self, bias):
-        self._FullyConnected__biases = bias
-
-    def getBias(self):
-        return self._FullyConnected__bias
-
-    def forward(self, dataIn):
-        self.setPrevIn(dataIn)
-        if self._FullyConnected__useBias == 1:
-            temp = dataIn @ self._FullyConnected__weights + self._FullyConnected__biases
-        else:
-            temp = dataIn @ self._FullyConnected__weights
-        self.setPrevOut(temp)
-        return temp
-
-    def backward(self, gradIn):
-        return gradIn @ self._FullyConnected__weights.T
-
-    def updateWeights(self, gradIn, eta, p1=0.9, p2=0.999, rho=-14, epoch=-1):
-        reg = 1
-        pi = self.getPrevIn()
-        po = self.getPrevOut()
-        dJdW = pi.T @ gradIn
-        deltaJ = dJdW / gradIn.shape[0] + 2 * reg * self._FullyConnected__weights / gradIn.shape[0]
-        self._FullyConnected__sW = p1 * self._FullyConnected__sW + (1 - p1) * deltaJ
-        self._FullyConnected__rW = p2 * self._FullyConnected__rW + (1 - p2) * (deltaJ * deltaJ)
-        dJdb = np.sum(gradIn, 0)
-        deltaJ = dJdb / gradIn.shape[0] + 2 * reg * self._FullyConnected__biases / gradIn.shape[0]
-        self._FullyConnected__sb = p1 * self._FullyConnected__sb + (1 - p1) * deltaJ
-        self._FullyConnected__rb = p2 * self._FullyConnected__rb + (1 - p2) * (deltaJ * deltaJ)
-        if epoch == -1:
-            self._FullyConnected__weights -= eta * dJdW / pi.shape[0]
-            self._FullyConnected__biases -= eta * dJdb / pi.shape[0]
-        else:
-            self._FullyConnected__weights -= eta * (self._FullyConnected__sW / (1 - p1 ** epoch) / (np.sqrt(self._FullyConnected__rW / (1 - p2 ** epoch)) + rho) + 2 * reg * self._FullyConnected__weights / gradIn.shape[0])
-            self._FullyConnected__biases -= eta * (self._FullyConnected__sb / (1 - p1 ** epoch) / (np.sqrt(self._FullyConnected__rb / (1 - p2 ** epoch)) + rho) + 2 * reg * self._FullyConnected__biases / gradIn.shape[0])
-
-    def gradient(self):
-        return np.tile(self._FullyConnected__weights.T, (self.getPrevIn().shape[0], 1, 1))
-
+# Evaluation methods
 class LeastSquares:
     def eval(self, y, yhat):
         j = (y - yhat) ** 2
@@ -343,114 +332,4 @@ class CrossEntropy:
         pass
 
 
-class RunLayers:
-    def __init__(self, X, Y, layerList, epochs, eta, eval_method='none'):
-        self.X = X
-        self.Y = Y
-        self.layers = layerList
-        self.epochs = epochs
-        self.eta = eta
-        self.eval_method = eval_method
 
-    def forwardRun(self, X):
-        H = X
-        for i in range(len(self.layers) - 1):
-            H = self.layers[i].forward(H)
-        return H
-
-    def backRun(self, Y, H, time):
-        grad = self.layers[-1].gradient(Y, H)
-        for i in range(len(self.layers) - 2, 0, -1):
-            newGrad = self.layers[i].backward(grad)
-
-            if isinstance(self.layers[i], FullyConnectedLayer):
-                self.layers[i].updateWeights(grad, self.eta)
-            
-            if isinstance(self.layers[i], FullyConnectedADAM):
-                self.layers[i].updateWeights(grad, 5, p1=0.9, p2=0.999, rho=-14, epoch= time + 1)
-
-            grad = newGrad
-
-    def mapeRun(self, H):
-        mape = np.mean(np.absolute((self.Y - H) / self.Y))
-        return mape
-
-    def rmseRun(self, H):
-        rmse = math.sqrt(np.matmul(np.transpose(self.Y - H), (self.Y - H)) / np.size(H, axis=0))
-        return rmse
-
-    def objfunRun(self, H):
-        objRun = np.mean(self.layers[-1].eval(self.Y, H))
-        print(objRun)
-        return objRun
-
-    def objSelect(self, H):
-        if self.eval_method == 'none':
-            return self.objfunRun(H)
-        elif self.eval_method == 'mape':
-            return self.mapeRun(H)
-        elif self.eval_method == 'rmse':
-            return self.rmseRun(H)
-
-    def allRun(self):
-        endDiff = 1e-10
-        epochStorage = []
-        errorStorage = []
-
-        for j in range(self.epochs):
-            # Forward
-            H = self.forwardRun(self.X)
-            # Backwards
-            self.backRun(self.Y, H, j)
-            error = self.objSelect(H)
-            #print(error)
-            errorStorage.append(error)
-            # epochStorage.append(j)
-
-            if j == 0:
-                continue
-
-            if np.absolute(error - errorStorage[j-1]) < endDiff:
-                break
-
-        return epochStorage, errorStorage
-
-    def classify(self, X):
-        classification = self.forwardRun(X)
-        classification[classification < 0.5] = 0
-        classification[classification >= 0.5] = 1
-        return np.argmax(classification, axis=1).reshape(classification.shape[0], 1)
-
-if __name__ == '__main__':
-    start_time = dt.now()
-    # start_time = dt.time()
-
-    data = np.genfromtxt('mnist_train_100.csv', delimiter=',', skip_header=True)
-    np.random.shuffle(data)
-    
-    XTrain = data[:, 1:]
-    YTrain = data[:, :1]
-
-
-    L1 = InputLayer(XTrain) 
-    L2 = FullyConnectedADAM(XTrain.shape[1], 10)
-    L3 = SigmoidLayer()
-    L4 = LogLoss()
-    layers = [L1, L2, L3, L4]
-    ep = 10
-    # print("Number of epochs: {}".format(ep))
-    "Training"
-    # Run test
-    run = RunLayers(XTrain, YTrain, layers, ep, 0.5)
-    epochStorageTrain, errorStorageTrain = run.allRun()
-    trainClassify = run.classify(XTrain)
-    binaryClassify = (YTrain == trainClassify)
-
-    print("Training Accuracy: {0:.2f}%".format((np.count_nonzero(binaryClassify) / np.size(YTrain, axis=0)) * 100))
-    
-    end_time = dt.now()
-    print("Duration: {}".format(end_time - start_time))
-    plt.figure(3)
-    plt.plot(epochStorageTrain, errorStorageTrain)
-    plt.show()
- 
